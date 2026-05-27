@@ -122,24 +122,27 @@ export function CapexVsBenefitsChart() {
 
   const raw = generateProjection(scenario);
   // Acumular valores año a año para la curva de payback
-  let cumCapex = 0, cumBenefits = 0, cumOpex = 0;
+  let cumCapex = 0, cumBenefits = 0, cumOpex = 0, cumVad = 0;
   const data = raw.map((d) => {
     cumCapex    += d.capex;
     cumBenefits += d.benefits;
     cumOpex     += d.opex;
+    cumVad      += d.vadRevenue || 0;
     return {
-      year:             d.year,
-      'CAPEX Acum.':    cumCapex,
-      'Beneficios Acum.': cumBenefits,
-      'OPEX Acum.':     cumOpex,
+      year:               d.year,
+      'CAPEX Acum.':      cumCapex,
+      'Ahorros Acum.':    cumBenefits,
+      'VAD Acum.':        cumVad,
+      'Ingresos Tot.':    cumBenefits + cumVad,
+      'OPEX Acum.':       cumOpex,
     };
   });
 
   return (
     <div className="glass-card p-5 animate-fade-in">
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-white">Curva de Payback: CAPEX vs. Beneficios Acumulados</h3>
-        <p className="text-xs text-slate-500 mt-0.5">El cruce entre Beneficios y CAPEX+OPEX marca el breakeven</p>
+        <h3 className="text-sm font-semibold text-white">Curva de Payback: Costos vs. Ingresos Acumulados</h3>
+        <p className="text-xs text-slate-500 mt-0.5">El cruce entre Ingresos (Ahorros + VAD) y Egresos (CAPEX+OPEX) marca el breakeven</p>
       </div>
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
@@ -178,10 +181,19 @@ export function CapexVsBenefitsChart() {
           />
           <Line
             type="monotone"
-            dataKey="Beneficios Acum."
+            dataKey="Ingresos Tot."
             stroke="#10b981"
             strokeWidth={2.5}
             dot={{ fill: '#10b981', r: 3, strokeWidth: 0 }}
+            activeDot={{ r: 5 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="VAD Acum."
+            stroke="#a855f7"
+            strokeWidth={2}
+            strokeDasharray="3 3"
+            dot={{ fill: '#a855f7', r: 3, strokeWidth: 0 }}
             activeDot={{ r: 5 }}
           />
         </LineChart>
@@ -216,6 +228,7 @@ export function BenefitsBreakdownChart() {
         'Efic. Operativa': savingsOpex,
         'Multas/Calidad':  savingsFines,
         'Rec. Fraude':     fraudRecovery,
+        'VAD (ENRE)':      d.vadRevenue,
       };
     });
 
@@ -244,8 +257,9 @@ export function BenefitsBreakdownChart() {
             wrapperStyle={{ paddingTop: '12px', fontSize: '11px', color: '#94a3b8' }}
           />
           <Bar dataKey="Efic. Operativa" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="Multas/Calidad"  stackId="a" fill="#6366f1" />
-          <Bar dataKey="Rec. Fraude"     stackId="a" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="Multas/Calidad"  stackId="a" fill="#3b82f6" />
+          <Bar dataKey="Rec. Fraude"     stackId="a" fill="#f59e0b" />
+          <Bar dataKey="VAD (ENRE)"      stackId="a" fill="#a855f7" radius={[3, 3, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

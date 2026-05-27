@@ -4,7 +4,7 @@ import { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, DollarSign,
-  BarChart3, Zap, AlertTriangle, Settings, HardDrive,
+  BarChart3, Zap, AlertTriangle, Settings, HardDrive, Landmark
 } from 'lucide-react';
 import { useStore, selectActiveScenario } from '../store/useStore';
 import {
@@ -14,6 +14,8 @@ import {
   calculateBenefitsForYear,
   getDeploymentSchedule,
   getCumulativeDeployed,
+  calculateVadRevenueIT,
+  calculateVadRevenueMeters,
 } from '../BUSINESS_LOGIC';
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -120,9 +122,10 @@ export default function KpiDashboard() {
     calculateCapexForYear(scenario, i)
   ).reduce((a, b) => a + b, 0);
 
-  const opexMature    = calculateOpexForYear(scenario, horizon);
+  const opexMature     = calculateOpexForYear(scenario, horizon);
   const benefitsMature = calculateBenefitsForYear(scenario, horizon);
-  const npv           = calculateNPV(scenario);
+  const vadMature      = calculateVadRevenueIT(scenario, horizon) + calculateVadRevenueMeters(scenario, horizon);
+  const npv            = calculateNPV(scenario);
 
   // Deployment data
   const schedule   = getDeploymentSchedule(scenario);
@@ -135,7 +138,8 @@ export default function KpiDashboard() {
   let cumulativeNPV = 0;
   const r = global.wacc / 100;
   for (let t = 0; t <= horizon; t++) {
-    cumulativeNPV += (calculateBenefitsForYear(scenario, t) - calculateOpexForYear(scenario, t) - calculateCapexForYear(scenario, t)) / Math.pow(1 + r, t);
+    const vad = calculateVadRevenueIT(scenario, t) + calculateVadRevenueMeters(scenario, t);
+    cumulativeNPV += (calculateBenefitsForYear(scenario, t) + vad - calculateOpexForYear(scenario, t) - calculateCapexForYear(scenario, t)) / Math.pow(1 + r, t);
     if (cumulativeNPV >= 0 && breakevenYear === null) breakevenYear = t;
   }
 
@@ -160,10 +164,18 @@ export default function KpiDashboard() {
     },
     {
       icon:   <Zap className="w-5 h-5" />,
-      label:  'Beneficios Año Final',
+      label:  'Ahorros Año Final',
       value:  fmtUSD(benefitsMature),
-      sub:    '3 palancas al 100% del rollout',
+      sub:    'Eficiencias Operativas puras al 100% del rollout',
       accent: 'green',
+      trend:  'up',
+    },
+    {
+      icon:   <Landmark className="w-5 h-5" />,
+      label:  'Ingresos VAD Año Final',
+      value:  fmtUSD(vadMature),
+      sub:    'Retorno regulatorio sobre RAB (IT y Medidores)',
+      accent: 'purple',
       trend:  'up',
     },
     {

@@ -178,19 +178,26 @@ Estos equipos se adquieren proporcionalmente a cada año de despliegue.
 
 ## 5. CAPEX — Inversión de Capital
 
-### 5.1 CAPEX del Año 0 (pre-operativo)
+### 5.1 CAPEX de la Plataforma IT (Distribuido)
 
-Corresponde a la inversión en plataforma IT antes de iniciar instalaciones:
+La inversión en la Plataforma IT (`C_IT`: MDM, SAP/CRM, ciberseguridad) no se eroga en un único momento, sino que se distribuye a lo largo de los primeros 6 años (Año 0 a Año 5) según porcentajes configurables `pct_IT[y]`:
 
 ```
-CAPEX[0] = C_IT  +  C_PM
+CAPEX_IT[y] = C_IT · (pct_IT[y] / 100)     para y = 0..5
+```
+
+### 5.2 CAPEX del Año 0 (pre-operativo)
+
+Corresponde a la porción de IT asignada al Año 0 y la gerencia de proyecto antes de iniciar instalaciones:
+
+```
+CAPEX[0] = CAPEX_IT[0]  +  C_PM
 ```
 
 Donde:
-- `C_IT` = costo de integración IT (MDM, SAP/CRM, ciberseguridad)
 - `C_PM` = costo de gestión del proyecto y comunicación institucional
 
-### 5.2 CAPEX de los Años 1..N (inversión en campo)
+### 5.3 CAPEX de los Años 1..N (inversión en campo e IT)
 
 Para cada año `y` del despliegue:
 
@@ -211,7 +218,7 @@ CAPEX_infra[y] = Conc_plc[y] · C_conc_plc  +  FP_ws[y] · C_fp_ws
 
 **CAPEX total del año `y`:**
 ```
-CAPEX[y] = schedule[y] · C_medidor[y]  +  CAPEX_infra[y]
+CAPEX[y] = schedule[y] · C_medidor[y]  +  CAPEX_infra[y]  +  CAPEX_IT[y]
 ```
 
 **CAPEX total acumulado:**
@@ -279,9 +286,23 @@ progress[y] = min(1,  cumulative[y] / M)
 
 A medida que más medidores están activos, mayor es la fracción de beneficios realizables.
 
-### Palanca 1: Eficiencias Operativas
+### Palanca 1: Eficiencias Operativas y Productividad
 
-#### 1a. Ahorro en lecturas pedestres
+#### 1a. Productividad — Visitas Evitadas
+
+La AMI evita que las cuadrillas de guardia se desplacen innecesariamente al diagnosticar eventos remotamente (cierres seguros, falsas alarmas, problemas de tensión internos):
+
+```
+B_productividad[y] = (V_improductivas + V_reiteradas + V_calidad) · C_guardia · progress[y]
+```
+
+Donde:
+- `V_improductivas` = visitas por falsa alarma (suministro repuesto antes de llegar)
+- `V_reiteradas` = reiterancia evitable mediante cierre remoto seguro
+- `V_calidad` = visitas por oscilaciones/BT diagnosticadas remotamente
+- `C_guardia` = costo por salida de cuadrilla de guardia (USD)
+
+#### 1b. Ahorro en lecturas pedestres
 
 La AMI elimina la necesidad de cuadrillas para toma de lectura manual:
 
@@ -293,9 +314,9 @@ Donde:
 - `V_lecturas` = volumen anual de lecturas manuales actuales (unidades)
 - `C_lectura` = costo unitario por lectura (USD)
 
-#### 1b. Ahorro en despachos de corte y reposición
+#### 1c. Ahorro en despachos de corte y reposición
 
-El telecomando permite gestionar cortes/reposiciones remotamente, eliminando viajes en campo:
+El telecomando permite gestionar cortes/reposiciones remotamente, eliminando viajes en campo físicos:
 
 ```
 B_despachos[y] = (V_cortes + V_repos) · C_cuadrilla · progress[y]
@@ -304,11 +325,11 @@ B_despachos[y] = (V_cortes + V_repos) · C_cuadrilla · progress[y]
 Donde:
 - `V_cortes` = órdenes de corte físico anuales
 - `V_repos` = órdenes de reposición física anuales
-- `C_cuadrilla` = costo por visita en campo (USD)
+- `C_cuadrilla` = costo por visita de cuadrilla de corte/repo (USD)
 
 **Subtotal Palanca 1:**
 ```
-B_P1[y] = B_lecturas[y] + B_despachos[y]
+B_P1[y] = B_productividad[y] + B_lecturas[y] + B_despachos[y]
 ```
 
 ---
@@ -339,9 +360,21 @@ B_estimaciones[y] = M_estimaciones · progress[y]
 
 Donde `M_estimaciones` es el monto anual de multas por estimación (USD/año).
 
+#### 2c. Multas de Calidad de Producto (Aparcamiento e Incumplimiento)
+
+La AMI permite resolver eventos de calidad más rápido, mejorando indicadores regulatorios y reduciendo multas por Aparcamiento y por Incumplimiento:
+
+```
+B_calidad[y] = [ M_aparcamiento · (r_aparcamiento / 100)  +  M_incumplimiento · (r_incumplimiento / 100) ] · progress[y]
+```
+
+Donde:
+- `M_aparcamiento`, `M_incumplimiento` = multas base anuales (USD/año)
+- `r_aparcamiento`, `r_incumplimiento` = porcentajes de mejora esperados con AMI (%)
+
 **Subtotal Palanca 2:**
 ```
-B_P2[y] = B_SAIDI[y] + B_estimaciones[y]
+B_P2[y] = B_SAIDI[y] + B_estimaciones[y] + B_calidad[y]
 ```
 
 ---
@@ -493,7 +526,8 @@ Los parámetros se ordenan de mayor a menor `|Δ_VPN|` para identificar los fact
 | Instalación | C_install | USD 18 | Mano de obra por medidor |
 | Concentrador PLC | C_conc_plc | USD 3.200 | Equipo concentrador PLC (1 c/250 nodos) |
 | Focal Point WS | C_fp_ws | USD 8.500 | Gateway Wi-SUN mesh (1 c/5.000 nodos) |
-| Integración IT | C_IT | USD 15M | Plataforma MDM, SAP, ciberseguridad (año 0) |
+| Integración IT | C_IT | USD 15M | Plataforma MDM, SAP, ciberseguridad (distribuido años 0-5) |
+| IT Schedule | pct_IT | 40/30/20/10/0/0 | % de distribución anual de Integración IT |
 | Project Mgmt | C_PM | USD 8M | Gerencia de proyecto (año 0) |
 
 ### OPEX
@@ -513,12 +547,20 @@ Los parámetros se ordenan de mayor a menor `|Δ_VPN|` para identificar los fact
 | Lecturas anuales | V_lecturas | 2.500.000 | Lecturas pedestres actuales |
 | Costo por lectura | C_lectura | USD 3,50 | Costo unitario de lectura manual |
 | Cortes físicos | V_cortes | 180.000/año | Órdenes de corte con cuadrilla |
+| Improductivas | V_improductivas | 75.000/año | Visitas evitadas por falso corte / restablecimiento previo |
+| Reiteradas | V_reiteradas | 27.000/año | Visitas evitadas por cierre remoto seguro |
+| Visitas calidad | V_calidad | 20.000/año | Visitas evitadas por oscilaciones diagnosticadas remotamente |
 | Repos físicas | V_repos | 180.000/año | Órdenes de reposición con cuadrilla |
-| Costo cuadrilla | C_cuadrilla | USD 38 | Costo por visita en campo |
+| Costo cuadrilla | C_cuadrilla | USD 38 | Costo por visita en campo para cortes y repos |
+| Costo guardia | C_guardia | USD 52 | Costo por salida de cuadrilla de guardia |
 | SAIDI histórico | H_SAIDI | 18 hs/año | Horas de interrupción promedio anuales |
 | Reducción SAIDI | r_SAIDI | 30% | Mejora esperada con AMI |
 | Multa SAIDI | C_multa | USD 850K/hora | Penalidad regulatoria por hora |
 | Multas estimación | M_estimaciones | USD 3,2M/año | Multas ENRE por lecturas estimadas |
+| Multa aparcamiento | M_aparcamiento | USD 0/año | Multa base por Aparcamiento |
+| Mejora aparcam. | r_aparcamiento | 30% | % de reducción esperada |
+| Multa incumpl. | M_incumplimiento | USD 0/año | Multa base por Incumplimiento |
+| Mejora incumpl. | r_incumplimiento | 30% | % de reducción esperada |
 | Pérdidas NT | L_NT | 850.000 MWh/año | Pérdidas no técnicas (hurto energía) |
 | Recuperación AMI | r_rec | 42% | Fracción recuperable con AMI |
 | Costo MEM | C_MEM | USD 42/MWh | Precio energía mercado mayorista |

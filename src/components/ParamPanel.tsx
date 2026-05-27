@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { Globe, Cpu, Settings, TrendingUp, Activity } from 'lucide-react';
+import { Globe, Cpu, Settings, TrendingUp, Activity, Landmark } from 'lucide-react';
 import { useStore, selectActiveScenario } from '../store/useStore';
 import ParamInput from './ParamInput';
 import TechMixSelector from './TechMixSelector';
@@ -10,14 +10,17 @@ import DeploymentCurveSelector from './DeploymentCurveSelector';
 import ITScheduleSelector from './ITScheduleSelector';
 import type { DeploymentCurve } from '../DATA_MODEL';
 
-type Tab = 'global' | 'capex' | 'opex' | 'benefits_op' | 'benefits_agr';
+type Tab = 'global' | 'regulatory' | 'capex' | 'opex' | 'benefits_op' | 'benefits_agr';
 
 const TABS_ROW1: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: 'global', label: 'Macro',   icon: <Globe    className="w-3.5 h-3.5" /> },
-  { key: 'capex',  label: 'CAPEX',   icon: <Cpu      className="w-3.5 h-3.5" /> },
-  { key: 'opex',   label: 'OPEX',    icon: <Settings className="w-3.5 h-3.5" /> },
+  { key: 'global',     label: 'Macro',     icon: <Globe    className="w-3.5 h-3.5" /> },
+  { key: 'regulatory', label: 'Regulador', icon: <Landmark className="w-3.5 h-3.5" /> },
 ];
 const TABS_ROW2: { key: Tab; label: string; icon: React.ReactNode }[] = [
+  { key: 'capex',      label: 'CAPEX',     icon: <Cpu      className="w-3.5 h-3.5" /> },
+  { key: 'opex',       label: 'OPEX',      icon: <Settings className="w-3.5 h-3.5" /> },
+];
+const TABS_ROW3: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'benefits_op',  label: 'Benef. OP',  icon: <Activity   className="w-3.5 h-3.5" /> },
   { key: 'benefits_agr', label: 'Benef. AGR', icon: <TrendingUp className="w-3.5 h-3.5" /> },
 ];
@@ -66,7 +69,7 @@ export default function ParamPanel() {
         {/* Tab pills — 2 filas */}
         <div className="space-y-1">
           {/* Fila 1: Macro / CAPEX / OPEX */}
-          <div className="grid grid-cols-3 gap-1 rounded-xl p-1" style={{ background: 'var(--bg-glass)' }}>
+          <div className="grid grid-cols-2 gap-1 rounded-xl p-1" style={{ background: 'var(--bg-glass)' }}>
             {TABS_ROW1.map((t) => (
               <button
                 key={t.key}
@@ -88,9 +91,32 @@ export default function ParamPanel() {
               </button>
             ))}
           </div>
-          {/* Fila 2: Beneficios OP / Beneficios AGR */}
+          {/* Fila 2: CAPEX / OPEX */}
           <div className="grid grid-cols-2 gap-1 rounded-xl p-1" style={{ background: 'var(--bg-glass)' }}>
             {TABS_ROW2.map((t) => (
+              <button
+                key={t.key}
+                id={`tab-${t.key}`}
+                onClick={() => setActiveTab(t.key)}
+                className="relative flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
+                style={{ color: activeTab === t.key ? 'white' : 'var(--text-muted)' }}
+              >
+                {activeTab === t.key && (
+                  <motion.div layoutId="tab-pill"
+                    className="absolute inset-0 rounded-lg bg-brand-600"
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1">
+                  {t.icon}
+                  <span className="hidden sm:inline">{t.label}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          {/* Fila 3: Beneficios OP / Beneficios AGR */}
+          <div className="grid grid-cols-2 gap-1 rounded-xl p-1" style={{ background: 'var(--bg-glass)' }}>
+            {TABS_ROW3.map((t) => (
               <button
                 key={t.key}
                 id={`tab-${t.key}`}
@@ -136,8 +162,8 @@ export default function ParamPanel() {
                   tooltip: 'Período de evaluación del proyecto.', val: scenario.global.analysisHorizonYears },
                 { id: 'totalEndpoints',       label: 'Total de Endpoints',    unit: 'medidores', format: 'currency' as const, min: 10000,
                   tooltip: 'Universo total de medidores a desplegar. Edesur tiene ~2.5M de clientes activos.', val: scenario.global.totalEndpoints },
-                { id: 'exchangeRate',         label: 'Tipo de Cambio',        unit: 'ARS/USD', format: 'currency' as const, min: 100,
-                  tooltip: 'Tipo de cambio de referencia para conversión de costos internos en ARS.', val: scenario.global.exchangeRate },
+                { id: 't2t3Pct',              label: 'Mix Hardware: T2/T3',   unit: '%', format: 'percent' as const, min: 0, max: 100, step: 1,
+                  tooltip: 'Porcentaje del parque que utilizará medidores T2 o T3. El resto usará T1.', val: scenario.global.t2t3Pct ?? 0 },
               ] as const).map((p) => (
                 <motion.div key={p.id} variants={itemVariants}>
                   <ParamInput {...p} value={p.val} onChange={(v) => upd('global', p.id, v)} />
@@ -173,6 +199,41 @@ export default function ParamPanel() {
               </motion.div>
 
             </>)}
+
+            {/* ── REGULATORY ────────────────────────────────────────── */}
+            {activeTab === 'regulatory' && (() => {
+              const reg = scenario.regulatory || { waccEnrePhase1: 9.99, waccEnrePhase2: 9.99, recognizedMeterCapexPhase1: 126, meterRegulatoryLife: 25, itRegulatoryLife: 10, enreItSubsidy: 0 };
+              return (
+                <>
+                  <motion.div variants={itemVariants}><SectionTitle>Condiciones ENRE (VAD)</SectionTitle></motion.div>
+                  <motion.div variants={itemVariants}>
+                    <div className="glass rounded-xl p-3 mb-2 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      💡 Parámetros de reconocimiento tarifario sobre la Base de Capital (RAB). Los activos ingresan a la RAB en cohortes anuales.
+                    </div>
+                  </motion.div>
+                  {([
+                    { id: 'waccEnrePhase1',             label: 'WACC ENRE Fase 1 (Años 1-4)', unit: '%', format: 'percent' as const, min: 0, val: reg.waccEnrePhase1, tooltip: 'Tasa fija aplicable a los medidores instalados hasta el año 4 inclusive.' },
+                    { id: 'waccEnrePhase2',             label: 'WACC ENRE Fase 2 (Año 5+)',   unit: '%', format: 'percent' as const, min: 0, val: reg.waccEnrePhase2, tooltip: 'Tasa aplicable a los medidores instalados a partir del año 5.' },
+                    { id: 'recognizedMeterCapexPhase1', label: 'CAPEX Reconocido Fase 1',     unit: 'USD', format: 'currency' as const, min: 0, val: reg.recognizedMeterCapexPhase1, tooltip: 'Monto fijo unitario por medidor ingresado a la RAB en la Fase 1.' },
+                    { id: 'meterRegulatoryLife',        label: 'Vida Útil Medidores',         unit: 'años', format: 'number' as const, min: 1, val: reg.meterRegulatoryLife, tooltip: 'Años de amortización lineal de los medidores en la RAB.' },
+                  ] as const).map((p) => (
+                    <motion.div key={p.id} variants={itemVariants}>
+                      <ParamInput {...p} value={p.val} onChange={(v) => upd('regulatory', p.id, v)} />
+                    </motion.div>
+                  ))}
+
+                  <motion.div variants={itemVariants}><SectionTitle>Aportes y Software IT</SectionTitle></motion.div>
+                  {([
+                    { id: 'itRegulatoryLife',           label: 'Vida Útil Software IT',       unit: 'años', format: 'number' as const, min: 1, val: reg.itRegulatoryLife, tooltip: 'Años de amortización de la plataforma IT en la RAB.' },
+                    { id: 'enreItSubsidy',              label: 'Aporte Único ENRE (IT)',      unit: 'M USD', format: 'millions' as const, min: 0, val: reg.enreItSubsidy, tooltip: 'Monto no reintegrable otorgado en el Año 0 que reduce el CAPEX IT elegible para VAD.' },
+                  ] as const).map((p) => (
+                    <motion.div key={p.id} variants={itemVariants}>
+                      <ParamInput {...p} value={p.val} onChange={(v) => upd('regulatory', p.id, v)} />
+                    </motion.div>
+                  ))}
+                </>
+              );
+            })()}
 
             {/* ── CAPEX ─────────────────────────────────────────────── */}
             {activeTab === 'capex' && (<>

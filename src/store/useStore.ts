@@ -6,35 +6,35 @@ import { persist } from 'zustand/middleware';
 import type { Scenario } from '../DATA_MODEL';
 import { generateProjection, calculateNPV } from '../BUSINESS_LOGIC';
 
-// ── Escenario Baseline (Edesur 2024) ──────────────────────────────────────
+// ── Escenario Baseline (Edesur 2026) ──────────────────────────────────────
 export const BASELINE_SCENARIO: Scenario = {
   id: 'baseline',
-  name: 'Baseline — Edesur 2024',
-  description: 'Escenario de referencia con supuestos conservadores de licitación pública. Mix tecnológico P2P 100%. Curva de despliegue lineal.',
+  name: 'Baseline — Edesur 2026',
+  description: 'Escenario de referencia con supuestos Edesur. Mix tecnológico Wi-Sun/PLC. Curva de despliegue lineal.',
   isBaseline: true,
   global: {
-    wacc:                 14,
-    exchangeRate:         1200,
+    wacc:                 9.99,
     analysisHorizonYears: 8,
     totalEndpoints:       2_500_000,
-    wiSunPct:             0,
-    plcPct:               0,
+    wiSunPct:             50,
+    plcPct:               45,
+    t2t3Pct:              10,
     deploymentCurve:      'linear',
   },
   capex: {
-    meterCostT1:          55,
-    meterCostT2T3:        120,
+    meterCostT1:          50,
+    meterCostT2T3:        100,
     // Módulos de comunicación por tecnología
     commsCostWiSun:       15,
-    commsCostPLC:         12,
-    commsCostP2P:         22,
-    installCost:          18,
+    commsCostPLC:         0,
+    commsCostP2P:         25,
+    installCost:          15,
     // Infraestructura
-    concentratorCostPLC:  3_200,
-    focalPointCostWiSun:  8_500,
+    concentratorCostPLC:  300,
+    focalPointCostWiSun:  300,
     // IT Platform
     itIntegrationCost:    15_000_000,
-    pmCost:               8_000_000,
+    pmCost:               1_000_000,
     // Distribución temporal IT (% por año, suma = 100)
     itScheduleY0:         40,
     itScheduleY1:         30,
@@ -44,39 +44,47 @@ export const BASELINE_SCENARIO: Scenario = {
     itScheduleY5:         0,
   },
   opex: {
-    telecomMonthly:       0.85,
-    saasAnnual:           4_000_000,
-    cloudMonthly:         120_000,
-    maintenanceAnnual:    6_000_000,
-    adminAnnual:          2_500_000,
+    telecomMonthly:       0.3,
+    saasAnnual:           200_000,
+    cloudMonthly:         5_000,
+    maintenanceAnnual:    500_000,
+    adminAnnual:          500_000,
   },
   benefits: {
     // Operacionales
-    manualReadsVolume:         2_500_000,
-    manualReadUnitCost:        3.5,
-    annualCutsVolume:          180_000,
-    annualReposVolume:         180_000,
-    dispatchCost:              38,
-    guardDispatchCost:         52,   // Guardia: costo mayor por horario y urgencia
+    manualReadsVolume:         25_000_000,
+    manualReadUnitCost:        1,
+    annualCutsVolume:          200_000,
+    annualReposVolume:         170_000,
+    dispatchCost:              15,
+    guardDispatchCost:         20,
     // Productividad — visitas evitadas al 100% del despliegue
-    unproductiveVisitsAvoided: 75_000,   // 30% tasa improductiva base estimada
-    reiterativeVisitsAvoided:  27_000,   // 15% tasa de reiterancia base estimada
-    qualityVisitsAvoided:      20_000,   // Oscilaciones y BT diagnosticadas remotamente
+    unproductiveVisitsAvoided: 70_000,
+    reiterativeVisitsAvoided:  30_000,
+    qualityVisitsAvoided:      20_000,
     // Agregados
-    saidiHistoricalHours:      18,
-    saidiTargetReduction:      30,
-    finePerHour:               850_000,
-    estFinesAnnual:            3_200_000,
+    saidiHistoricalHours:      900,
+    saidiTargetReduction:      10,
+    finePerHour:               100_000,
+    estFinesAnnual:            500_000,
     // Multas de Calidad de Producto
-    parkingFineAnnual:         0,
-    parkingFineImprovement:    30,
-    nonComplianceFineAnnual:   0,
-    nonComplianceFineImprovement: 30,
+    parkingFineAnnual:         10_000_000,
+    parkingFineImprovement:    20,
+    nonComplianceFineAnnual:   2_000_000,
+    nonComplianceFineImprovement: 70,
     // Fraude
-    nonTechLossesMwh:          850_000,
-    recoveryRateTarget:        42,
-    energyWholesaleCost:       42,
-    currentTariff:             95,
+    nonTechLossesMwh:          100_000,
+    recoveryRateTarget:        20,
+    energyWholesaleCost:       30,
+    currentTariff:             50,
+  },
+  regulatory: {
+    waccEnrePhase1:            9.99,
+    waccEnrePhase2:            9.99,
+    recognizedMeterCapexPhase1:126,
+    meterRegulatoryLife:       25,
+    itRegulatoryLife:          10,
+    enreItSubsidy:             5_000_000,
   },
 };
 
@@ -172,8 +180,8 @@ export const useStore = create<AMIStore>()(
         })),
     }),
     {
-      name: 'ami-simulator-v5',  // v5 = IT schedule + multas calidad; borra caché v4
-      version: 5,
+      name: 'ami-simulator-v9',  // v9 = new baseline defaults
+      version: 9,
     }
   )
 );

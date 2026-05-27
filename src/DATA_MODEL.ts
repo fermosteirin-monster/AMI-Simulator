@@ -4,13 +4,11 @@ export type DeploymentCurve = 'slow' | 'accelerated' | 'linear';
 
 export interface GlobalParams {
   wacc: number;
-  exchangeRate: number;
   analysisHorizonYears: number;
   totalEndpoints: number;
-  // Mix tecnológico (wiSunPct + plcPct <= 100; p2pPct = 100 - wiSun - plc)
-  wiSunPct: number;
-  plcPct: number;
-  // Curva de despliegue
+  wiSunPct: number;               // % de endpoints con módulo Wi-SUN
+  plcPct: number;                 // % de endpoints con módulo PLC
+  t2t3Pct: number;                // % de endpoints que son medidores T2/T3
   deploymentCurve: DeploymentCurve;
 }
 
@@ -73,6 +71,15 @@ export interface BenefitParams {
   currentTariff: number;
 }
 
+export interface RegulatoryParams {
+  waccEnrePhase1: number;             // % (ej: 9.99)
+  waccEnrePhase2: number;             // %
+  recognizedMeterCapexPhase1: number; // USD (ej: 126)
+  meterRegulatoryLife: number;        // años (ej: 25)
+  itRegulatoryLife: number;           // años (ej: 10)
+  enreItSubsidy: number;              // Monto en USD aportado por ENRE para IT (resta de RAB IT)
+}
+
 export interface Scenario {
   id: string;
   name: string;
@@ -82,6 +89,7 @@ export interface Scenario {
   capex:    CapexParams;
   opex:     OpexParams;
   benefits: BenefitParams;
+  regulatory: RegulatoryParams;
 }
 
 export interface YearlyProjection {
@@ -91,6 +99,9 @@ export interface YearlyProjection {
   capex: number;
   opex: number;
   benefits: number;
+  vadRevenue: number;
+  fcf: number;
+  discountedFcf: number;
   netCashFlow: number;
   cumulativeNPV: number;
 }

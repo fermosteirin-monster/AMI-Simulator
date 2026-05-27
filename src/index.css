@@ -278,3 +278,4 @@
     50%       { opacity: 0.6; box-shadow: 0 0 14px currentColor; }
   }
 }
+@media print { aside, header, #theme-toggle-btn, #export-btn, .dash-tab { display: none !important; } .flex-1 { overflow: visible !important; } body { background: white !important; color: black !important; } .glass-card { box-shadow: none !important; border: 1px solid #ddd !important; background: white !important; break-inside: avoid; } .kpi-card { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; color: black !important; break-inside: avoid; } .kpi-card p, .kpi-card span { color: black !important; } }

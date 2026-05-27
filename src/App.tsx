@@ -17,6 +17,7 @@ import ScenarioCompare from './components/ScenarioCompare';
 import MultiScenarioChart from './components/MultiScenarioChart';
 import { PRESETS } from './lib/presets';
 import { generateProjection } from './BUSINESS_LOGIC';
+import { generateDetailedCSV } from './lib/exportUtils';
 
 type DashTab = 'overview' | 'projection' | 'sensitivity' | 'compare';
 
@@ -106,6 +107,25 @@ export default function App() {
       activeScenarioId: scenario.id,
     }));
     setShowPresets(false);
+  };
+
+  const handleExportDetailedCSV = () => {
+    if (!activeScenario) return;
+    const csvStr = generateDetailedCSV(activeScenario);
+    const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ami-formulas-${activeScenario.id}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setShowExportMenu(false);
+  };
+
+  const handleExportPDF = () => {
+    setShowExportMenu(false);
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const handleExportJSON = useCallback(() => {
@@ -312,7 +332,7 @@ export default function App() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Header */}
-        <header className="px-6 py-3 flex items-center justify-between flex-shrink-0 border-b"
+        <header className="px-6 py-3 flex items-center justify-between flex-shrink-0 border-b relative z-50"
           style={{
             background: isDark ? 'rgba(15,15,46,0.80)' : 'rgba(255,255,255,0.80)',
             borderColor: 'var(--border-subtle)',
@@ -383,9 +403,8 @@ export default function App() {
                     }}
                   >
                     {[
-                      { id: 'export-json-btn', icon: '📄', label: 'JSON — Escenario activo', fn: handleExportJSON },
-                      { id: 'export-csv-btn',  icon: '📊', label: 'CSV — Proyección año a año', fn: handleExportCSV },
-                      { id: 'export-all-btn',  icon: '🗂️', label: 'JSON — Todos los escenarios', fn: handleExportAllJSON },
+                      { id: 'export-pdf-btn', icon: '📄', label: 'Exportar a PDF (Reporte de KPIs)', fn: handleExportPDF },
+                      { id: 'export-csv-btn', icon: '📊', label: 'Exportar a Google Sheets (Auditoría de Fórmulas)', fn: handleExportDetailedCSV },
                     ].map((item) => (
                       <button key={item.id} id={item.id} onClick={item.fn}
                         className="w-full text-left px-3 py-2 text-xs rounded-lg transition-colors hover:bg-white/5"

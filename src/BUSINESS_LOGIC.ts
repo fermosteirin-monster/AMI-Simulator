@@ -126,8 +126,13 @@ export function calculateCapexForYear(scenario: Scenario, year: number): number 
     (plcPct  / 100) * capex.commsCostPLC +
     (p2pPct  / 100) * capex.commsCostP2P;
 
+  // Costo de medidor base ponderado por mix T1 vs T2/T3
+  const t2t3Pct = global.t2t3Pct ?? 0;
+  const t1Pct = Math.max(0, 100 - t2t3Pct);
+  const weightedMeterCost = (t1Pct / 100) * capex.meterCostT1 + (t2t3Pct / 100) * capex.meterCostT2T3;
+
   // Costo de hardware + instalación por medidor
-  const perMeterCost = capex.meterCostT1 + weightedCommsCost + capex.installCost;
+  const perMeterCost = weightedMeterCost + weightedCommsCost + capex.installCost;
 
   // Infraestructura proporcional a medidores de este año
   const plcMeters      = metersThisYear * (plcPct   / 100);
@@ -212,6 +217,84 @@ export function calculateBenefitsForYear(scenario: Scenario, year: number): numb
   return productivitySavings + readingSavings + dispatchSavings + saidiBenefit + estFinesBenefit + qualityFinesBenefit + fraudBenefit;
 }
 
+// ── INGRESOS VAD (ENRE) ───────────────────────────────────────────────────
+
+function calculateCohortVad(capex: number, cohortYear: number, evalYear: number, life: number, wacc: number): number {
+  const age = evalYear - cohortYear;
+  if (age < 0 || age >= life) return 0; // No instalada o totalmente amortizada
+  
+  const annualAmortization = capex / life;
+  const remRAB = capex - (annualAmortization * age); // Base de Capital Remanente
+  
+  // VAD = Depreciación lineal + Retorno sobre Base de Capital Remanente
+  return annualAmortization + remRAB * (wacc / 100);
+}
+
+export function calculateVadRevenueIT(scenario: Scenario, evalYear: number): number {
+  if (evalYear < 0) return 0;
+  const { capex } = scenario;
+  const regulatory = scenario.regulatory || { waccEnrePhase1: 9.99, waccEnrePhase2: 9.99, recognizedMeterCapexPhase1: 126, meterRegulatoryLife: 25, itRegulatoryLife: 10, enreItSubsidy: 0 };
+  const itLife = regulatory.itRegulatoryLife;
+  let totalVad = 0;
+
+  // Cohorte Año 0: descontar el subsidio ENRE
+  const itCostY0 = (capex.itScheduleY0 ?? 100) / 100 * capex.itIntegrationCost;
+  const eligibleY0 = Math.max(0, itCostY0 - regulatory.enreItSubsidy);
+  totalVad += calculateCohortVad(eligibleY0, 0, evalYear, itLife, regulatory.waccEnrePhase1);
+
+  // Cohortes Y1 a Y5 (si se configuró schedule distribuido)
+  const itSchedule = [0, capex.itScheduleY1, capex.itScheduleY2, capex.itScheduleY3, capex.itScheduleY4, capex.itScheduleY5];
+  for (let cohortYear = 1; cohortYear <= 5; cohortYear++) {
+    const itCostYn = ((itSchedule[cohortYear] ?? 0) / 100) * capex.itIntegrationCost;
+    if (itCostYn > 0) {
+      totalVad += calculateCohortVad(itCostYn, cohortYear, evalYear, itLife, regulatory.waccEnrePhase1);
+    }
+  }
+
+  return totalVad;
+}
+
+export function calculateVadRevenueMeters(scenario: Scenario, evalYear: number): number {
+  if (evalYear <= 0) return 0;
+  const { global, capex } = scenario;
+  const regulatory = scenario.regulatory || { waccEnrePhase1: 9.99, waccEnrePhase2: 9.99, recognizedMeterCapexPhase1: 126, meterRegulatoryLife: 25, itRegulatoryLife: 10, enreItSubsidy: 0 };
+  const schedule = getDeploymentSchedule(scenario);
+  const meterLife = regulatory.meterRegulatoryLife;
+  let totalVad = 0;
+
+  for (let cohortYear = 1; cohortYear <= evalYear; cohortYear++) {
+    if (cohortYear >= schedule.length) break;
+    const metersInstalled = schedule[cohortYear];
+    if (metersInstalled <= 0) continue;
+
+    let cohortCapexUnit = 0;
+    let cohortWacc = 0;
+
+    if (cohortYear <= 4) { // Fase 1
+      cohortCapexUnit = regulatory.recognizedMeterCapexPhase1;
+      cohortWacc = regulatory.waccEnrePhase1;
+    } else { // Fase 2
+      const { wiSunPct, plcPct, t2t3Pct = 0 } = global;
+      const p2pPct = deriveP2pPct(wiSunPct, plcPct);
+      const weightedCommsCost =
+        (wiSunPct / 100) * capex.commsCostWiSun +
+        (plcPct  / 100) * capex.commsCostPLC +
+        (p2pPct  / 100) * capex.commsCostP2P;
+      
+      const t1Pct = Math.max(0, 100 - t2t3Pct);
+      const weightedMeterCost = (t1Pct / 100) * capex.meterCostT1 + (t2t3Pct / 100) * capex.meterCostT2T3;
+      
+      cohortCapexUnit = weightedMeterCost + weightedCommsCost + capex.installCost;
+      cohortWacc = regulatory.waccEnrePhase2;
+    }
+
+    const cohortTotalCapex = metersInstalled * cohortCapexUnit;
+    totalVad += calculateCohortVad(cohortTotalCapex, cohortYear, evalYear, meterLife, cohortWacc);
+  }
+
+  return totalVad;
+}
+
 // ── VPN TOTAL ─────────────────────────────────────────────────────────────
 
 export function calculateNPV(scenario: Scenario): number {
@@ -219,10 +302,11 @@ export function calculateNPV(scenario: Scenario): number {
   const horizon = scenario.global.analysisHorizonYears;
   let npv = 0;
   for (let t = 0; t <= horizon; t++) {
-    const capex    = calculateCapexForYear(scenario, t);
-    const opex     = calculateOpexForYear(scenario, t);
-    const benefits = calculateBenefitsForYear(scenario, t);
-    npv += (benefits - opex - capex) / Math.pow(1 + r, t);
+    const capex      = calculateCapexForYear(scenario, t);
+    const opex       = calculateOpexForYear(scenario, t);
+    const benefits   = calculateBenefitsForYear(scenario, t);
+    const vadRevenue = calculateVadRevenueIT(scenario, t) + calculateVadRevenueMeters(scenario, t);
+    npv += (benefits + vadRevenue - opex - capex) / Math.pow(1 + r, t);
   }
   return npv;
 }
@@ -239,21 +323,30 @@ export function generateProjection(scenario: Scenario): YearlyProjection[] {
   const result: YearlyProjection[] = [];
 
   for (let year = 0; year <= horizon; year++) {
-    const capex    = calculateCapexForYear(scenario, year);
-    const opex     = calculateOpexForYear(scenario, year);
-    const benefits = calculateBenefitsForYear(scenario, year);
-    const netCashFlow = benefits - opex - capex;
-    cumulativeNPV += netCashFlow / Math.pow(1 + r, year);
+    const capex      = calculateCapexForYear(scenario, year);
+    const opex       = calculateOpexForYear(scenario, year);
+    const benefits   = calculateBenefitsForYear(scenario, year);
+    const vadRevenue = calculateVadRevenueIT(scenario, year) + calculateVadRevenueMeters(scenario, year);
+    const netCashFlow = benefits + vadRevenue - opex - capex;
+    const discountedFcf = netCashFlow / Math.pow(1 + r, year);
+    cumulativeNPV += discountedFcf;
 
     result.push({
       year,
       metersDeployedThisYear: Math.round(schedule[year] ?? 0),
-      cumulativeMeters: Math.round(cumulative[year] ?? 0),
+      installations: Math.round(schedule[year] ?? 0),
+      cumulative: Math.round(cumulative[year] ?? 0),
+      progress: scenario.global.totalEndpoints > 0
+        ? Math.min(1, (cumulative[year] ?? 0) / scenario.global.totalEndpoints)
+        : 0,
       capex,
       opex,
       benefits,
+      vadRevenue,
+      fcf: netCashFlow,
+      discountedFcf,
       netCashFlow,
-      cumulativeNPV,
+      cumulativeNPV
     });
   }
 
