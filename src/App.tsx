@@ -1,6 +1,7 @@
 // App.tsx — Premium shell con Framer Motion, modo light/dark, animaciones fluidas
 
 import { useState, useCallback, useEffect } from 'react';
+import LoginScreen from './components/LoginScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Zap, Copy, Trash2, ChevronRight, RotateCcw,
@@ -56,6 +57,10 @@ export default function App() {
     setActiveScenario, cloneScenario, deleteScenario, resetScenarioToBaseline,
   } = useStore();
   const activeScenario = useStore(selectActiveScenario);
+
+  const [authenticated, setAuthenticated] = useState<boolean>(
+    () => sessionStorage.getItem('ami_authenticated') === 'true'
+  );
 
   const [cloneName, setCloneName]           = useState('');
   const [showCloneInput, setShowCloneInput] = useState(false);
@@ -127,6 +132,10 @@ export default function App() {
   }, [scenarios]);
 
   const isDark = theme === 'dark';
+
+  if (!authenticated) {
+    return <LoginScreen onSuccess={() => setAuthenticated(true)} />;
+  }
 
   return (
     <div
