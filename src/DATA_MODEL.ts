@@ -25,9 +25,16 @@ export interface CapexParams {
   // Infraestructura de concentración
   concentratorCostPLC: number;   // 1 cada 250 conexiones PLC
   focalPointCostWiSun: number;   // 1 cada 5000 conexiones Wi-SUN
-  // IT Platform (inversión única)
+  // IT Platform (inversión total)
   itIntegrationCost: number;
   pmCost: number;
+  // Distribución temporal de Integración IT (% del total, años 0-5, debe sumar 100)
+  itScheduleY0: number;
+  itScheduleY1: number;
+  itScheduleY2: number;
+  itScheduleY3: number;
+  itScheduleY4: number;
+  itScheduleY5: number;
 }
 
 export interface OpexParams {
@@ -39,15 +46,27 @@ export interface OpexParams {
 }
 
 export interface BenefitParams {
+  // ── Operacionales ──────────────────────────────────────────────────────────
   manualReadsVolume: number;
   manualReadUnitCost: number;
   annualCutsVolume: number;
   annualReposVolume: number;
-  dispatchCost: number;
+  dispatchCost: number;          // Cuadrilla corte / reposición
+  guardDispatchCost: number;     // Cuadrilla de guardia (improductivas, reiteradas, calidad)
+  // Productividad: visitas evitadas al 100% del despliegue (escalan con progress)
+  unproductiveVisitsAvoided: number;  // Visitas improductivas (~30% tasa actual)
+  reiterativeVisitsAvoided: number;   // Visitas reiteradas (~15% tasa actual)
+  qualityVisitsAvoided: number;       // Visitas calidad de producto (oscilaciones/BT)
+  // ── Agregados / Agrupados ──────────────────────────────────────────────────
   saidiHistoricalHours: number;
   saidiTargetReduction: number;
   finePerHour: number;
   estFinesAnnual: number;
+  // Multas de Calidad de Producto (escalan con progress)
+  parkingFineAnnual: number;            // Monto total multa Aparcamiento (M USD/año actual)
+  parkingFineImprovement: number;       // % de mejora atribuible al AMI
+  nonComplianceFineAnnual: number;      // Monto total multa Incumplimiento (M USD/año actual)
+  nonComplianceFineImprovement: number; // % de mejora atribuible al AMI
   nonTechLossesMwh: number;
   recoveryRateTarget: number;
   energyWholesaleCost: number;

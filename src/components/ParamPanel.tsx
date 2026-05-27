@@ -2,20 +2,24 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { Globe, Cpu, Settings, TrendingUp } from 'lucide-react';
+import { Globe, Cpu, Settings, TrendingUp, Activity } from 'lucide-react';
 import { useStore, selectActiveScenario } from '../store/useStore';
 import ParamInput from './ParamInput';
 import TechMixSelector from './TechMixSelector';
 import DeploymentCurveSelector from './DeploymentCurveSelector';
+import ITScheduleSelector from './ITScheduleSelector';
 import type { DeploymentCurve } from '../DATA_MODEL';
 
-type Tab = 'global' | 'capex' | 'opex' | 'benefits';
+type Tab = 'global' | 'capex' | 'opex' | 'benefits_op' | 'benefits_agr';
 
-const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: 'global',   label: 'Macro',      icon: <Globe      className="w-3.5 h-3.5" /> },
-  { key: 'capex',    label: 'CAPEX',      icon: <Cpu        className="w-3.5 h-3.5" /> },
-  { key: 'opex',     label: 'OPEX',       icon: <Settings   className="w-3.5 h-3.5" /> },
-  { key: 'benefits', label: 'Beneficios', icon: <TrendingUp className="w-3.5 h-3.5" /> },
+const TABS_ROW1: { key: Tab; label: string; icon: React.ReactNode }[] = [
+  { key: 'global', label: 'Macro',   icon: <Globe    className="w-3.5 h-3.5" /> },
+  { key: 'capex',  label: 'CAPEX',   icon: <Cpu      className="w-3.5 h-3.5" /> },
+  { key: 'opex',   label: 'OPEX',    icon: <Settings className="w-3.5 h-3.5" /> },
+];
+const TABS_ROW2: { key: Tab; label: string; icon: React.ReactNode }[] = [
+  { key: 'benefits_op',  label: 'Benef. OP',  icon: <Activity   className="w-3.5 h-3.5" /> },
+  { key: 'benefits_agr', label: 'Benef. AGR', icon: <TrendingUp className="w-3.5 h-3.5" /> },
 ];
 
 const containerVariants: Variants = {
@@ -45,8 +49,13 @@ export default function ParamPanel() {
 
   if (!scenario) return null;
 
-  const upd = (section: Tab, key: string, value: number) =>
-    updateVariable(scenario.id, section, key, value);
+  const upd = (section: Tab, key: string, value: number) => {
+    // benefits_op y benefits_agr mapean al mismo bloque 'benefits' del store
+    const storeSection = (section === 'benefits_op' || section === 'benefits_agr')
+      ? 'benefits'
+      : section;
+    updateVariable(scenario.id, storeSection as 'global' | 'capex' | 'opex' | 'benefits', key, value);
+  };
 
   return (
     <div className="flex flex-col h-full gap-3">
@@ -54,28 +63,54 @@ export default function ParamPanel() {
         <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
           Parámetros del Escenario
         </h2>
-        {/* Tab pills */}
-        <div className="grid grid-cols-4 gap-1 rounded-xl p-1" style={{ background: 'var(--bg-glass)' }}>
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              id={`tab-${t.key}`}
-              onClick={() => setActiveTab(t.key)}
-              className="relative flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
-              style={{ color: activeTab === t.key ? 'white' : 'var(--text-muted)' }}
-            >
-              {activeTab === t.key && (
-                <motion.div layoutId="tab-pill"
-                  className="absolute inset-0 rounded-lg bg-brand-600"
-                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1">
-                {t.icon}
-                <span className="hidden sm:inline">{t.label}</span>
-              </span>
-            </button>
-          ))}
+        {/* Tab pills — 2 filas */}
+        <div className="space-y-1">
+          {/* Fila 1: Macro / CAPEX / OPEX */}
+          <div className="grid grid-cols-3 gap-1 rounded-xl p-1" style={{ background: 'var(--bg-glass)' }}>
+            {TABS_ROW1.map((t) => (
+              <button
+                key={t.key}
+                id={`tab-${t.key}`}
+                onClick={() => setActiveTab(t.key)}
+                className="relative flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
+                style={{ color: activeTab === t.key ? 'white' : 'var(--text-muted)' }}
+              >
+                {activeTab === t.key && (
+                  <motion.div layoutId="tab-pill"
+                    className="absolute inset-0 rounded-lg bg-brand-600"
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1">
+                  {t.icon}
+                  <span className="hidden sm:inline">{t.label}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          {/* Fila 2: Beneficios OP / Beneficios AGR */}
+          <div className="grid grid-cols-2 gap-1 rounded-xl p-1" style={{ background: 'var(--bg-glass)' }}>
+            {TABS_ROW2.map((t) => (
+              <button
+                key={t.key}
+                id={`tab-${t.key}`}
+                onClick={() => setActiveTab(t.key)}
+                className="relative flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
+                style={{ color: activeTab === t.key ? 'white' : 'var(--text-muted)' }}
+              >
+                {activeTab === t.key && (
+                  <motion.div layoutId="tab-pill"
+                    className="absolute inset-0 rounded-lg bg-brand-600"
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1">
+                  {t.icon}
+                  <span className="hidden sm:inline">{t.label}</span>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -182,16 +217,47 @@ export default function ParamPanel() {
               ))}
 
               <motion.div variants={itemVariants}><SectionTitle>Plataforma IT</SectionTitle></motion.div>
-              {([
-                { id: 'itIntegrationCost', label: 'Integración IT (MDM + SAP)', unit: 'M USD', format: 'millions' as const, min: 0,
-                  tooltip: 'Inversión única en plataforma MDM, integración SAP/CRM y ciberseguridad.', val: scenario.capex.itIntegrationCost },
-                { id: 'pmCost',            label: 'Project Management',         unit: 'M USD', format: 'millions' as const, min: 0,
-                  tooltip: 'Gerencia de proyecto, comunicación institucional y campañas de concientización.', val: scenario.capex.pmCost },
-              ] as const).map((p) => (
-                <motion.div key={p.id} variants={itemVariants}>
-                  <ParamInput {...p} value={p.val} onChange={(v) => upd('capex', p.id, v)} />
-                </motion.div>
-              ))}
+              <motion.div variants={itemVariants}>
+                <ParamInput
+                  id="itIntegrationCost"
+                  label="Integración IT (MDM + SAP)"
+                  unit="M USD"
+                  format="millions"
+                  min={0}
+                  tooltip="Inversión total distribuible en MDM, integración SAP/CRM y ciberseguridad."
+                  value={scenario.capex.itIntegrationCost}
+                  onChange={(v) => upd('capex', 'itIntegrationCost', v)}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <p className="text-xs mb-2 mt-1 font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  Distribución por año
+                </p>
+                <ITScheduleSelector
+                  values={{
+                    itScheduleY0: scenario.capex.itScheduleY0,
+                    itScheduleY1: scenario.capex.itScheduleY1,
+                    itScheduleY2: scenario.capex.itScheduleY2,
+                    itScheduleY3: scenario.capex.itScheduleY3,
+                    itScheduleY4: scenario.capex.itScheduleY4,
+                    itScheduleY5: scenario.capex.itScheduleY5,
+                  }}
+                  totalAmount={scenario.capex.itIntegrationCost}
+                  onChange={(field, value) => upd('capex', field, value)}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <ParamInput
+                  id="pmCost"
+                  label="Project Management"
+                  unit="M USD"
+                  format="millions"
+                  min={0}
+                  tooltip="Gerencia de proyecto, comunicación institucional y campañas de concientización. Se ejecuta en Año 0."
+                  value={scenario.capex.pmCost}
+                  onChange={(v) => upd('capex', 'pmCost', v)}
+                />
+              </motion.div>
             </>)}
 
             {/* ── OPEX ──────────────────────────────────────────────── */}
@@ -228,43 +294,109 @@ export default function ParamPanel() {
               ))}
             </>)}
 
-            {/* ── BENEFITS ──────────────────────────────────────────── */}
-            {activeTab === 'benefits' && (<>
-              <motion.div variants={itemVariants}><SectionTitle>Eficiencias Operativas</SectionTitle></motion.div>
+            {/* ── BENEFICIOS OP (Operacionales) ────────────────────────── */}
+            {activeTab === 'benefits_op' && (<>
+              <motion.div variants={itemVariants}><SectionTitle>Lecturas y Despachos</SectionTitle></motion.div>
               {([
-                { id: 'manualReadsVolume',  label: 'Lecturas Pedestres Anuales', unit: 'lect/año',  format: 'currency' as const, min: 0, val: scenario.benefits.manualReadsVolume },
-                { id: 'manualReadUnitCost', label: 'Costo por Lectura',           unit: 'USD',       format: 'number'  as const, min: 0, max: 50, step: 0.5, val: scenario.benefits.manualReadUnitCost },
-                { id: 'annualCutsVolume',   label: 'Cortes Físicos Anuales',      unit: 'órdenes',   format: 'currency' as const, min: 0, val: scenario.benefits.annualCutsVolume },
-                { id: 'annualReposVolume',  label: 'Reposiciones Físicas',         unit: 'órdenes',   format: 'currency' as const, min: 0, val: scenario.benefits.annualReposVolume },
-                { id: 'dispatchCost',       label: 'Costo de Cuadrilla',           unit: 'USD/visita', format: 'number' as const, min: 0, max: 500, val: scenario.benefits.dispatchCost },
+                { id: 'manualReadsVolume',  label: 'Lecturas Pedestres Anuales', unit: 'lect/año',   format: 'currency' as const, min: 0, val: scenario.benefits.manualReadsVolume,
+                  tooltip: 'Volumen de lecturas manuales en campo que el AMI elimina.' },
+                { id: 'manualReadUnitCost', label: 'Costo por Lectura',           unit: 'USD',        format: 'number'  as const, min: 0, max: 50, step: 0.5, val: scenario.benefits.manualReadUnitCost,
+                  tooltip: 'Costo unitario por lectura pedestre (RRHH + viáticos).' },
+                { id: 'annualCutsVolume',   label: 'Cortes Físicos Anuales',      unit: 'órdenes',    format: 'currency' as const, min: 0, val: scenario.benefits.annualCutsVolume,
+                  tooltip: 'Órdenes de corte físico que pasarán a ser corte remoto.' },
+                { id: 'annualReposVolume',  label: 'Reposiciones Físicas',        unit: 'órdenes',    format: 'currency' as const, min: 0, val: scenario.benefits.annualReposVolume,
+                  tooltip: 'Reposiciones físicas que pasarán a ser reposición remota.' },
+                { id: 'dispatchCost',       label: 'Costo Cuadrilla Corte/Repo', unit: 'USD/visita', format: 'number'  as const, min: 0, max: 500, val: scenario.benefits.dispatchCost,
+                  tooltip: 'Costo por visita de cuadrilla para cortes y reposiciones físicas.' },
               ] as const).map((p) => (
                 <motion.div key={p.id} variants={itemVariants}>
-                  <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits', p.id, v)}
-                    tooltip={undefined} />
+                  <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits_op', p.id, v)} />
                 </motion.div>
               ))}
-              <motion.div variants={itemVariants}><SectionTitle>Calidad y Multas ENRE</SectionTitle></motion.div>
+
+              <motion.div variants={itemVariants}><SectionTitle>Productividad — Visitas Evitadas</SectionTitle></motion.div>
+              <motion.div variants={itemVariants}>
+                <div className="glass rounded-xl p-3 mb-2 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  💡 Ingresá el <strong className="text-brand-400">total de visitas a evitar al 100% del despliegue</strong>.
+                  El ahorro escala proporcionalmente con el avance del rollout.
+                  Todas multiplican por el <strong className="text-brand-400">Costo de Cuadrilla de Guardia</strong> definido abajo.
+                </div>
+              </motion.div>
               {([
-                { id: 'saidiHistoricalHours', label: 'SAIDI Histórico',            unit: 'horas/año',  format: 'number'  as const, min: 0, max: 100, step: 0.5, val: scenario.benefits.saidiHistoricalHours },
-                { id: 'saidiTargetReduction', label: 'Reducción SAIDI Esperada',   unit: '%',          format: 'percent' as const, min: 0, max: 80, val: scenario.benefits.saidiTargetReduction },
-                { id: 'finePerHour',          label: 'Multa por Hora SAIDI',       unit: 'USD/hora',   format: 'currency' as const, min: 0, val: scenario.benefits.finePerHour },
-                { id: 'estFinesAnnual',       label: 'Multas por Estimación',      unit: 'M USD/año',  format: 'millions' as const, min: 0, val: scenario.benefits.estFinesAnnual },
+                { id: 'unproductiveVisitsAvoided', label: 'Improductivas Evitadas',       unit: 'visitas/año', format: 'currency' as const, min: 0,
+                  tooltip: 'Tasa actual ~30%. Visitas donde el meter confirma que el suministro volvió antes de despachar. Se evita la salida de la cuadrilla.',
+                  val: scenario.benefits.unproductiveVisitsAvoided },
+                { id: 'reiterativeVisitsAvoided',  label: 'Reiteradas Evitadas',          unit: 'visitas/año', format: 'currency' as const, min: 0,
+                  tooltip: 'Tasa actual ~15%. Con cierre seguro (validado por el meter) la reiterancia cae considerablemente.',
+                  val: scenario.benefits.reiterativeVisitsAvoided },
+                { id: 'qualityVisitsAvoided',      label: 'Calidad de Producto Evitadas', unit: 'visitas/año', format: 'currency' as const, min: 0,
+                  tooltip: 'Oscilaciones de tensión y eventos BT diagnosticados remotamente por el meter, evitando la visita presencial.',
+                  val: scenario.benefits.qualityVisitsAvoided },
+                { id: 'guardDispatchCost',         label: 'Costo Cuadrilla de Guardia',   unit: 'USD/visita',   format: 'number'  as const, min: 0, max: 500,
+                  tooltip: 'Costo por visita de cuadrilla de guardia. Generalmente mayor al de corte/repo por horario, urgencia y disponibilidad.',
+                  val: scenario.benefits.guardDispatchCost },
               ] as const).map((p) => (
                 <motion.div key={p.id} variants={itemVariants}>
-                  <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits', p.id, v)}
-                    tooltip={undefined} />
+                  <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits_op', p.id, v)} />
+                </motion.div>
+              ))}
+            </>)}
+
+            {/* ── BENEFICIOS AGR (Agregados) ───────────────────────────── */}
+            {activeTab === 'benefits_agr' && (<>
+              <motion.div variants={itemVariants}><SectionTitle>Calidad y Multas ENRE</SectionTitle></motion.div>
+              {([
+                { id: 'saidiHistoricalHours', label: 'SAIDI Histórico',           unit: 'horas/año', format: 'number'   as const, min: 0, max: 100, step: 0.5, val: scenario.benefits.saidiHistoricalHours,
+                  tooltip: 'Duración media de interrupción por usuario al año (histórico Edesur).' },
+                { id: 'saidiTargetReduction', label: 'Reducción SAIDI Esperada', unit: '%',          format: 'percent'  as const, min: 0, max: 80, val: scenario.benefits.saidiTargetReduction,
+                  tooltip: 'Reducción porcentual del SAIDI atribuible al AMI (detección temprana de fallas).' },
+                { id: 'finePerHour',          label: 'Multa por Hora SAIDI',     unit: 'USD/hora',   format: 'currency' as const, min: 0, val: scenario.benefits.finePerHour,
+                  tooltip: 'Penalidad regulatoria ENRE por cada hora de SAIDI sobre el umbral.' },
+                { id: 'estFinesAnnual',       label: 'Ahorro Multas por Estimación', unit: 'M USD/año',  format: 'millions' as const, min: 0, val: scenario.benefits.estFinesAnnual,
+                  tooltip: 'Total de multas ENRE por facturación estimada que el AMI elimina. Escala con el avance del despliegue.' },
+              ] as const).map((p) => (
+                <motion.div key={p.id} variants={itemVariants}>
+                  <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits_agr', p.id, v)} />
+                </motion.div>
+              ))}
+              <motion.div variants={itemVariants}><SectionTitle>Multas de Calidad de Producto</SectionTitle></motion.div>
+              <motion.div variants={itemVariants}>
+                <div className="glass rounded-xl p-3 mb-2 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  💡 Ingresá el monto total de cada multa y el <strong className="text-brand-400">% de mejora atribuible al AMI</strong>.
+                  El beneficio escala proporcionalmente con el avance del despliegue.
+                </div>
+              </motion.div>
+              {([
+                { id: 'parkingFineAnnual',           label: 'Aparcamiento — Monto Total',    unit: 'M USD/año', format: 'millions' as const, min: 0,
+                  tooltip: 'Monto total anual de multas por Aparcamiento. El AMI mejora el indicador al reducir tiempos de detección.',
+                  val: scenario.benefits.parkingFineAnnual },
+                { id: 'parkingFineImprovement',      label: 'Aparcamiento — % Mejora AMI',   unit: '%',          format: 'percent'  as const, min: 0, max: 100,
+                  tooltip: 'Porcentaje de reducción de la multa de Aparcamiento atribuible al despliegue AMI.',
+                  val: scenario.benefits.parkingFineImprovement },
+                { id: 'nonComplianceFineAnnual',     label: 'Incumplimiento — Monto Total',  unit: 'M USD/año', format: 'millions' as const, min: 0,
+                  tooltip: 'Monto total anual de multas por Incumplimiento. El AMI mejora la respuesta operativa.',
+                  val: scenario.benefits.nonComplianceFineAnnual },
+                { id: 'nonComplianceFineImprovement',label: 'Incumplimiento — % Mejora AMI', unit: '%',          format: 'percent'  as const, min: 0, max: 100,
+                  tooltip: 'Porcentaje de reducción de la multa de Incumplimiento atribuible al despliegue AMI.',
+                  val: scenario.benefits.nonComplianceFineImprovement },
+              ] as const).map((p) => (
+                <motion.div key={p.id} variants={itemVariants}>
+                  <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits_agr', p.id, v)} />
                 </motion.div>
               ))}
               <motion.div variants={itemVariants}><SectionTitle>Fraude y Pérdidas No Técnicas</SectionTitle></motion.div>
               {([
-                { id: 'nonTechLossesMwh',   label: 'Pérdidas No Técnicas',      unit: 'MWh/año',   format: 'currency' as const, min: 0, val: scenario.benefits.nonTechLossesMwh },
-                { id: 'recoveryRateTarget', label: 'Tasa de Recuperación AMI',  unit: '%',          format: 'percent' as const, min: 0, max: 100, val: scenario.benefits.recoveryRateTarget },
-                { id: 'energyWholesaleCost',label: 'Costo Energía en MEM',      unit: 'USD/MWh',   format: 'number'  as const, min: 0, max: 200, val: scenario.benefits.energyWholesaleCost },
-                { id: 'currentTariff',      label: 'Tarifa Comercial Vigente',  unit: 'USD/MWh',   format: 'number'  as const, min: 0, max: 500, val: scenario.benefits.currentTariff },
+                { id: 'nonTechLossesMwh',   label: 'Pérdidas No Técnicas',     unit: 'MWh/año',   format: 'currency' as const, min: 0, val: scenario.benefits.nonTechLossesMwh,
+                  tooltip: 'Energía distribuida no cobrada: fraude, derivaciones clandestinas.' },
+                { id: 'recoveryRateTarget', label: 'Tasa de Recuperación AMI', unit: '%',          format: 'percent'  as const, min: 0, max: 100, val: scenario.benefits.recoveryRateTarget,
+                  tooltip: 'Porcentaje de pérdidas no técnicas que el AMI logra recuperar.' },
+                { id: 'energyWholesaleCost',label: 'Costo Energía en MEM',     unit: 'USD/MWh',   format: 'number'   as const, min: 0, max: 200, val: scenario.benefits.energyWholesaleCost,
+                  tooltip: 'Costo de compra de energía en el MEM (Mercado Eléctrico Mayorista).' },
+                { id: 'currentTariff',      label: 'Tarifa Comercial Vigente', unit: 'USD/MWh',   format: 'number'   as const, min: 0, max: 500, val: scenario.benefits.currentTariff,
+                  tooltip: 'Precio de venta al usuario final. El margen = Tarifa − Costo MEM.' },
               ] as const).map((p) => (
                 <motion.div key={p.id} variants={itemVariants}>
-                  <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits', p.id, v)}
-                    tooltip={undefined} />
+                  <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits_agr', p.id, v)} />
                 </motion.div>
               ))}
             </>)}

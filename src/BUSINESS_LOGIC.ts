@@ -96,15 +96,29 @@ export function calculateCapexForYear(scenario: Scenario, year: number): number 
   const { wiSunPct, plcPct } = global;
   const p2pPct = deriveP2pPct(wiSunPct, plcPct);
 
+  // IT Integration distribuida según schedule (años 0–5)
+  const itSchedulePcts = [
+    capex.itScheduleY0 ?? 100,
+    capex.itScheduleY1 ?? 0,
+    capex.itScheduleY2 ?? 0,
+    capex.itScheduleY3 ?? 0,
+    capex.itScheduleY4 ?? 0,
+    capex.itScheduleY5 ?? 0,
+  ];
+  const itCostThisYear = (year >= 0 && year <= 5)
+    ? ((itSchedulePcts[year] ?? 0) / 100) * capex.itIntegrationCost
+    : 0;
+
   if (year === 0) {
-    return capex.itIntegrationCost + capex.pmCost;
+    // Pre-operativo: porción IT del año 0 + Project Management
+    return itCostThisYear + capex.pmCost;
   }
 
   const schedule = getDeploymentSchedule(scenario);
-  if (year < 1 || year >= schedule.length) return 0;
+  if (year < 1 || year >= schedule.length) return itCostThisYear;
 
   const metersThisYear = schedule[year];
-  if (metersThisYear <= 0) return 0;
+  if (metersThisYear <= 0) return itCostThisYear;
 
   // Costo de comunicaciones ponderado por mix tecnológico
   const weightedCommsCost =
@@ -125,7 +139,7 @@ export function calculateCapexForYear(scenario: Scenario, year: number): number 
     plcConcentrators  * capex.concentratorCostPLC +
     wiSunFocalPoints  * capex.focalPointCostWiSun;
 
-  return metersThisYear * perMeterCost + infraCost;
+  return metersThisYear * perMeterCost + infraCost + itCostThisYear;
 }
 
 // ── OPEX ──────────────────────────────────────────────────────────────────
@@ -165,6 +179,15 @@ export function calculateBenefitsForYear(scenario: Scenario, year: number): numb
     ? Math.min(1, (cumulative[year] ?? 0) / global.totalEndpoints)
     : 0;
 
+  // Palanca 0: Productividad — Visitas evitadas × costo cuadrilla de guardia
+  // Cada campo representa el total de visitas a evitar al 100% del despliegue.
+  // El impacto escala proporcionalmente con el avance del rollout (progress).
+  const productivitySavings =
+    (benefits.unproductiveVisitsAvoided +
+     benefits.reiterativeVisitsAvoided +
+     benefits.qualityVisitsAvoided) *
+    benefits.guardDispatchCost * progress;
+
   // Palanca 1: Ahorro en lecturas y despachos
   const readingSavings   = benefits.manualReadsVolume * benefits.manualReadUnitCost * progress;
   const dispatchSavings  = (benefits.annualCutsVolume + benefits.annualReposVolume)
@@ -175,12 +198,18 @@ export function calculateBenefitsForYear(scenario: Scenario, year: number): numb
   const saidiBenefit     = saidiHoursSaved * benefits.finePerHour;
   const estFinesBenefit  = benefits.estFinesAnnual * progress;
 
+  // Palanca 2b: Multas de Calidad de Producto (Aparcamiento + Incumplimiento)
+  const qualityFinesBenefit =
+    (benefits.parkingFineAnnual * ((benefits.parkingFineImprovement ?? 0) / 100) +
+     benefits.nonComplianceFineAnnual * ((benefits.nonComplianceFineImprovement ?? 0) / 100)) *
+    progress;
+
   // Palanca 3: Recuperación pérdidas no técnicas
   const mwhRecovered     = benefits.nonTechLossesMwh * (benefits.recoveryRateTarget / 100) * progress;
   const revenuePerMwh    = benefits.currentTariff - benefits.energyWholesaleCost;
   const fraudBenefit     = mwhRecovered * Math.max(0, revenuePerMwh);
 
-  return readingSavings + dispatchSavings + saidiBenefit + estFinesBenefit + fraudBenefit;
+  return productivitySavings + readingSavings + dispatchSavings + saidiBenefit + estFinesBenefit + qualityFinesBenefit + fraudBenefit;
 }
 
 // ── VPN TOTAL ─────────────────────────────────────────────────────────────

@@ -35,6 +35,13 @@ export const BASELINE_SCENARIO: Scenario = {
     // IT Platform
     itIntegrationCost:    15_000_000,
     pmCost:               8_000_000,
+    // Distribución temporal IT (% por año, suma = 100)
+    itScheduleY0:         40,
+    itScheduleY1:         30,
+    itScheduleY2:         20,
+    itScheduleY3:         10,
+    itScheduleY4:         0,
+    itScheduleY5:         0,
   },
   opex: {
     telecomMonthly:       0.85,
@@ -44,19 +51,32 @@ export const BASELINE_SCENARIO: Scenario = {
     adminAnnual:          2_500_000,
   },
   benefits: {
-    manualReadsVolume:    2_500_000,
-    manualReadUnitCost:   3.5,
-    annualCutsVolume:     180_000,
-    annualReposVolume:    180_000,
-    dispatchCost:         38,
-    saidiHistoricalHours: 18,
-    saidiTargetReduction: 30,
-    finePerHour:          850_000,
-    estFinesAnnual:       3_200_000,
-    nonTechLossesMwh:     850_000,
-    recoveryRateTarget:   42,
-    energyWholesaleCost:  42,
-    currentTariff:        95,
+    // Operacionales
+    manualReadsVolume:         2_500_000,
+    manualReadUnitCost:        3.5,
+    annualCutsVolume:          180_000,
+    annualReposVolume:         180_000,
+    dispatchCost:              38,
+    guardDispatchCost:         52,   // Guardia: costo mayor por horario y urgencia
+    // Productividad — visitas evitadas al 100% del despliegue
+    unproductiveVisitsAvoided: 75_000,   // 30% tasa improductiva base estimada
+    reiterativeVisitsAvoided:  27_000,   // 15% tasa de reiterancia base estimada
+    qualityVisitsAvoided:      20_000,   // Oscilaciones y BT diagnosticadas remotamente
+    // Agregados
+    saidiHistoricalHours:      18,
+    saidiTargetReduction:      30,
+    finePerHour:               850_000,
+    estFinesAnnual:            3_200_000,
+    // Multas de Calidad de Producto
+    parkingFineAnnual:         0,
+    parkingFineImprovement:    30,
+    nonComplianceFineAnnual:   0,
+    nonComplianceFineImprovement: 30,
+    // Fraude
+    nonTechLossesMwh:          850_000,
+    recoveryRateTarget:        42,
+    energyWholesaleCost:       42,
+    currentTariff:             95,
   },
 };
 
@@ -152,8 +172,8 @@ export const useStore = create<AMIStore>()(
         })),
     }),
     {
-      name: 'ami-simulator-v2',  // v2 = nuevo data model; borra caché anterior
-      version: 2,
+      name: 'ami-simulator-v5',  // v5 = IT schedule + multas calidad; borra caché v4
+      version: 5,
     }
   )
 );
