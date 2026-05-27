@@ -8,7 +8,7 @@ interface LoginScreenProps {
   onSuccess: () => void;
 }
 
-const CORRECT_PASSWORD = import.meta.env.VITE_APP_PASSWORD ?? 'ami2025';
+const CORRECT_PASSWORD = import.meta.env.VITE_ACCESS_KEY ?? 'ami2025';
 
 export default function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [password, setPassword]       = useState('');
