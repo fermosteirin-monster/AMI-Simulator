@@ -4,7 +4,8 @@ import { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, DollarSign,
-  BarChart3, Zap, AlertTriangle, Settings, HardDrive, Landmark
+  BarChart3, Zap, AlertTriangle, Settings, HardDrive, Landmark,
+  Percent, PieChart, Target
 } from 'lucide-react';
 import { useStore, selectActiveScenario } from '../store/useStore';
 import {
@@ -16,6 +17,9 @@ import {
   getCumulativeDeployed,
   calculateVadRevenueIT,
   calculateVadRevenueMeters,
+  calculateROI,
+  calculateIRR,
+  calculatePI,
 } from '../BUSINESS_LOGIC';
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -75,33 +79,33 @@ function KpiCard({ icon, label, value, sub, trend, accent = 'blue', delay = 0 }:
   const a = ACCENT[accent];
   return (
     <motion.div
-      className={`kpi-card p-5 ${a.card}`}
+      className={`kpi-card p-3.5 ${a.card}`}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay, ease: [0.16, 1, 0.3, 1] }}
       layout
     >
-      <div className="relative z-10 flex items-start justify-between gap-3">
+      <div className="relative z-10 flex items-start gap-3">
+        <div className={`flex-shrink-0 w-9 h-9 rounded-lg glass flex items-center justify-center ${a.icon}`}>
+          {icon}
+        </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs uppercase tracking-widest font-semibold mb-3"
+          <p className="text-[10px] uppercase tracking-widest font-bold mb-1"
             style={{ color: 'var(--text-muted)' }}>
             {label}
           </p>
-          <div className={`text-2xl font-bold leading-none mb-2 ${a.value}`}>
+          <div className={`text-xl font-bold leading-none mb-1 ${a.value}`}>
             <AnimatedValue value={value} />
           </div>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>{sub}</p>
-        </div>
-        <div className={`flex-shrink-0 w-10 h-10 rounded-xl glass flex items-center justify-center ${a.icon}`}>
-          {icon}
+          <p className="text-[10px] leading-tight" style={{ color: 'var(--text-muted)' }}>{sub}</p>
         </div>
       </div>
       {trend && (
-        <div className="relative z-10 mt-3 flex items-center gap-1">
-          <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${a.badge}`}>
+        <div className="relative z-10 mt-2 flex items-center gap-1">
+          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${a.badge}`}>
             {trend === 'up'
-              ? <><TrendingUp className="w-3 h-3" /> Positivo</>
-              : <><TrendingDown className="w-3 h-3" /> Negativo</>
+              ? <><TrendingUp className="w-2.5 h-2.5" /> Positivo</>
+              : <><TrendingDown className="w-2.5 h-2.5" /> Negativo</>
             }
           </span>
         </div>
@@ -126,6 +130,9 @@ export default function KpiDashboard() {
   const benefitsMature = calculateBenefitsForYear(scenario, horizon);
   const vadMature      = calculateVadRevenueIT(scenario, horizon) + calculateVadRevenueMeters(scenario, horizon);
   const npv            = calculateNPV(scenario);
+  const roi            = calculateROI(scenario);
+  const irr            = calculateIRR(scenario);
+  const pi             = calculatePI(scenario);
 
   // Deployment data
   const schedule   = getDeploymentSchedule(scenario);
@@ -214,12 +221,36 @@ export default function KpiDashboard() {
       sub:    `${fmtNum(totalDeployed)} acumulados de ${fmtNum(global.totalEndpoints)} totales · curva ${global.deploymentCurve}`,
       accent: 'cyan',
     },
+    {
+      icon:   <Target className="w-5 h-5" />,
+      label:  'ROI (Nominal)',
+      value:  `${(roi * 100).toFixed(1)}%`,
+      sub:    'Retorno total sobre la inversión',
+      accent: roi >= 0 ? 'green' : 'red',
+      trend:  roi >= 0 ? 'up' : 'down',
+    },
+    {
+      icon:   <Percent className="w-5 h-5" />,
+      label:  'TIR (Interna)',
+      value:  irr !== null ? `${(irr * 100).toFixed(2)}%` : 'N/A',
+      sub:    irr !== null && irr * 100 > global.wacc ? `Supera el WACC (${global.wacc}%)` : 'Inferior al WACC',
+      accent: irr !== null && irr * 100 >= global.wacc ? 'green' : 'amber',
+      trend:  irr !== null && irr * 100 >= global.wacc ? 'up' : 'down',
+    },
+    {
+      icon:   <PieChart className="w-5 h-5" />,
+      label:  'Profitability Index',
+      value:  `${pi.toFixed(2)}x`,
+      sub:    pi > 1 ? 'El proyecto crea valor (PI > 1)' : 'Destruye valor (PI < 1)',
+      accent: pi >= 1 ? 'green' : 'red',
+      trend:  pi >= 1 ? 'up' : 'down',
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       {cards.map((card, i) => (
-        <KpiCard key={card.label} {...card} delay={i * 0.06} />
+        <KpiCard key={card.label} {...card} delay={i * 0.04} />
       ))}
     </div>
   );

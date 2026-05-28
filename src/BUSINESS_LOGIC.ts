@@ -311,6 +311,82 @@ export function calculateNPV(scenario: Scenario): number {
   return npv;
 }
 
+export function calculateROI(scenario: Scenario): number {
+  const horizon = scenario.global.analysisHorizonYears;
+  let totalCapex = 0;
+  let totalInflows = 0; 
+  
+  for (let t = 0; t <= horizon; t++) {
+    const capex = calculateCapexForYear(scenario, t);
+    const opex = calculateOpexForYear(scenario, t);
+    const benefits = calculateBenefitsForYear(scenario, t);
+    const vad = calculateVadRevenueIT(scenario, t) + calculateVadRevenueMeters(scenario, t);
+    
+    totalCapex += capex;
+    totalInflows += (benefits + vad - opex);
+  }
+  
+  if (totalCapex === 0) return 0;
+  return (totalInflows - totalCapex) / totalCapex;
+}
+
+export function calculatePI(scenario: Scenario): number {
+  const r = scenario.global.wacc / 100;
+  const horizon = scenario.global.analysisHorizonYears;
+  
+  let pvInflows = 0;
+  let pvOutflows = 0;
+  
+  for (let t = 0; t <= horizon; t++) {
+    const capex = calculateCapexForYear(scenario, t);
+    const opex = calculateOpexForYear(scenario, t);
+    const benefits = calculateBenefitsForYear(scenario, t);
+    const vad = calculateVadRevenueIT(scenario, t) + calculateVadRevenueMeters(scenario, t);
+    
+    const discount = Math.pow(1 + r, t);
+    pvOutflows += capex / discount;
+    pvInflows += (benefits + vad - opex) / discount;
+  }
+  
+  if (pvOutflows === 0) return 0;
+  return pvInflows / pvOutflows;
+}
+
+function npvAtRate(scenario: Scenario, rate: number): number {
+  const horizon = scenario.global.analysisHorizonYears;
+  let npv = 0;
+  for (let t = 0; t <= horizon; t++) {
+    const capex = calculateCapexForYear(scenario, t);
+    const opex = calculateOpexForYear(scenario, t);
+    const benefits = calculateBenefitsForYear(scenario, t);
+    const vad = calculateVadRevenueIT(scenario, t) + calculateVadRevenueMeters(scenario, t);
+    npv += (benefits + vad - opex - capex) / Math.pow(1 + rate, t);
+  }
+  return npv;
+}
+
+export function calculateIRR(scenario: Scenario): number | null {
+  let r0 = 0.05;
+  let r1 = 0.15;
+  const maxIter = 100;
+  const tolerance = 1e-4;
+  
+  for (let i = 0; i < maxIter; i++) {
+    const npv0 = npvAtRate(scenario, r0);
+    const npv1 = npvAtRate(scenario, r1);
+    
+    if (Math.abs(npv1) < tolerance) return r1;
+    if (Math.abs(npv0 - npv1) < 1e-10) break; 
+    
+    const r2 = r1 - npv1 * ((r1 - r0) / (npv1 - npv0));
+    r0 = r1;
+    r1 = r2;
+  }
+  
+  // Si iteró sin converger o divergió
+  return null;
+}
+
 // ── PROYECCIÓN COMPLETA ───────────────────────────────────────────────────
 
 export function generateProjection(scenario: Scenario): YearlyProjection[] {
