@@ -17,14 +17,15 @@ export function deriveP2pPct(wiSunPct: number, plcPct: number): number {
  * cada año según la curva seleccionada.
  *
  * Año 0 = 0 (inversión IT / PM pre-operativa)
- * Año 1 = 100.000 (ramp-up inicial fijo — igual para todas las curvas)
- * Años 2..N:
+ * Año 1 = 100.000 (ramp-up inicial fijo)
+ * Año N = ~200.000 (o proporcional al total)
  *
- *   'slow'        → cuadrática anclada: year1 + b*(y-1)²  — crece lentamente desde year1
- *   'accelerated' → rampa aritmética:  year1 + (y-1)*δ  — incremento constante cada año
- *   'linear'      → tasa constante:    (total-year1)/(N-1) — mismo volumen años 2..N
+ * Curvas:
+ *   'bell'    → Campana simétrica usando onda seno. Alcanza el máximo a mitad del proyecto.
+ *   'plateau' → Meseta trapezoidal. Sube rápido, mantiene un peak estable, baja al final.
+ *   'linear'  → Tasa constante (distribuye el remanente uniformemente).
  *
- * Las tres curvas son estrictamente monotonamente crecientes y suman totalEndpoints.
+ * Las curvas son estrictamente controladas para que su suma sea exacta.
  */
 export function getDeploymentSchedule(scenario: Scenario): number[] {
   const { totalEndpoints, analysisHorizonYears, deploymentCurve } = scenario.global;
@@ -34,7 +35,8 @@ export function getDeploymentSchedule(scenario: Scenario): number[] {
   if (totalEndpoints <= 0 || horizon <= 0) return schedule;
 
   const INITIAL_RAMP = 100_000;
-  const year1 = Math.min(INITIAL_RAMP, totalEndpoints);
+  // Para garantizar curvas monotónicamente crecientes sin dar negativo, year1 no puede exceder el promedio anual
+  const year1 = Math.min(INITIAL_RAMP, totalEndpoints / horizon);
   schedule[1] = year1;
 
   const remaining = totalEndpoints - year1;
@@ -44,31 +46,76 @@ export function getDeploymentSchedule(scenario: Scenario): number[] {
 
   switch (deploymentCurve) {
     case 'linear': {
-      // Tasa constante: el sobrante se distribuye igual en cada año 2..N
       const perYear = remaining / remainingYears;
       for (let y = 2; y <= horizon; y++) schedule[y] = perYear;
       break;
     }
 
-    case 'accelerated': {
-      // Rampa aritmética: schedule[y] = year1 + (y-1)*delta
-      // year2 = year1 + delta > year1 siempre; incremento constante cada año
-      // Σ = N*year1 + delta * N*(N-1)/2  => delta = (total - N*year1) / (N*(N-1)/2)
-      const delta = remaining / (horizon * (horizon - 1) / 2);
+    case 'bell': {
+      // Base lineal de Y1 a Y_N
+      const Y_N = Math.min(200_000, remaining / remainingYears);
+      let sumBase = 0;
+      const baseLine = new Array(horizon + 1).fill(0);
       for (let y = 2; y <= horizon; y++) {
-        schedule[y] = year1 + (y - 1) * delta;
+        const progress = (y - 1) / remainingYears;
+        baseLine[y] = year1 + progress * (Y_N - year1);
+        sumBase += baseLine[y];
+      }
+
+      // Onda seno (campana) sobre la base
+      let sumSine = 0;
+      const sines = new Array(horizon + 1).fill(0);
+      for (let y = 2; y < horizon; y++) {
+        // En y=1 y y=horizon el seno debe ser 0.
+        const angle = Math.PI * (y - 1) / remainingYears;
+        sines[y] = Math.sin(angle);
+        sumSine += sines[y];
+      }
+
+      const extraNeeded = remaining - sumBase;
+      const amplitude = sumSine > 0 ? extraNeeded / sumSine : 0;
+
+      for (let y = 2; y <= horizon; y++) {
+        schedule[y] = Math.max(0, baseLine[y] + sines[y] * amplitude);
       }
       break;
     }
 
-    case 'slow': {
-      // Cuadrática anclada: schedule[y] = year1 + b*(y-1)²
-      // year2 = year1 + b  > year1 siempre; crece de forma paulatina
-      // Σ = N*year1 + b * Σ_{j=1}^{N-1} j² = N*year1 + b*(N-1)*N*(2N-1)/6
-      const sumSq = (horizon - 1) * horizon * (2 * horizon - 1) / 6;
-      const b = remaining / sumSq;
+    case 'plateau': {
+      // Meseta trapezoidal: sube rápido, mantiene (plateau), baja al final
+      const Y_N = Math.min(200_000, remaining / remainingYears);
+      
+      let sumBase = 0;
+      const baseLine = new Array(horizon + 1).fill(0);
       for (let y = 2; y <= horizon; y++) {
-        schedule[y] = year1 + b * (y - 1) * (y - 1);
+        const progress = (y - 1) / remainingYears;
+        baseLine[y] = year1 + progress * (Y_N - year1);
+        sumBase += baseLine[y];
+      }
+      
+      const pShape = new Array(horizon + 1).fill(0);
+      let sumShape = 0;
+      
+      // Definimos los puntos de inflexión del trapecio (ramp-up y ramp-down del 20%)
+      const r1 = Math.max(3, Math.round(1 + remainingYears * 0.2));
+      const r2 = Math.min(horizon - 1, Math.round(horizon - remainingYears * 0.2));
+      
+      for (let y = 2; y <= horizon; y++) {
+        if (y < r1) {
+          pShape[y] = (y - 1) / (r1 - 1); // Rampa de subida
+        } else if (y <= r2) {
+          pShape[y] = 1; // Meseta (Plateau)
+        } else {
+          pShape[y] = (horizon - y) / (horizon - r2); // Rampa de bajada
+        }
+        sumShape += pShape[y];
+      }
+      
+      const extraNeeded = remaining - sumBase;
+      const amplitude = sumShape > 0 ? extraNeeded / sumShape : 0;
+      
+      for (let y = 2; y <= horizon; y++) {
+        schedule[y] = Math.max(0, baseLine[y] + pShape[y] * amplitude);
       }
       break;
     }
@@ -275,7 +322,7 @@ export function calculateVadRevenueMeters(scenario: Scenario, evalYear: number):
     let cohortCapexUnit = 0;
     let cohortWacc = 0;
 
-    if (cohortYear <= 4) { // Fase 1
+    if (cohortYear <= 3) { // Fase 1 (primeros 3 años)
       cohortCapexUnit = regulatory.recognizedMeterCapexPhase1;
       cohortWacc = regulatory.waccEnrePhase1;
     } else { // Fase 2

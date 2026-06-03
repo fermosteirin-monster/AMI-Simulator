@@ -137,7 +137,7 @@ export default function KpiDashboard() {
   // Deployment data
   const schedule   = getDeploymentSchedule(scenario);
   const cumulative = getCumulativeDeployed(scenario);
-  const installsLastYear = schedule[horizon] ?? 0;
+  const maxInstalls      = Math.max(...schedule);
   const totalDeployed    = cumulative[horizon] ?? 0;
 
   // Breakeven
@@ -216,8 +216,8 @@ export default function KpiDashboard() {
     },
     {
       icon:   <HardDrive className="w-5 h-5" />,
-      label:  `Instalaciones — Año ${horizon}`,
-      value:  fmtNum(installsLastYear),
+      label:  `Instalaciones (Pico Anual)`,
+      value:  fmtNum(maxInstalls),
       sub:    `${fmtNum(totalDeployed)} acumulados de ${fmtNum(global.totalEndpoints)} totales · curva ${global.deploymentCurve}`,
       accent: 'cyan',
     },

@@ -8,7 +8,7 @@ import {
   Area, ComposedChart,
 } from 'recharts';
 import { useStore, selectActiveScenario } from '../store/useStore';
-import { generateProjection } from '../BUSINESS_LOGIC';
+import { generateProjection, getDeploymentSchedule, getCumulativeDeployed } from '../BUSINESS_LOGIC';
 
 // ── Formatters ─────────────────────────────────────────────────────────────
 const fmtM = (v: number) => {
@@ -261,6 +261,64 @@ export function BenefitsBreakdownChart() {
           <Bar dataKey="Rec. Fraude"     stackId="a" fill="#f59e0b" />
           <Bar dataKey="VAD (ENRE)"      stackId="a" fill="#a855f7" radius={[3, 3, 0, 0]} />
         </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ── Chart 4: Instalaciones Anuales y Parque Total ──────────────────────────
+const fmtMetersAxis = (v: number) => {
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(v) >= 1_000)     return `${(v / 1_000).toFixed(0)}K`;
+  return `${v.toFixed(0)}`;
+};
+
+export function InstallationsChart() {
+  const scenario = useStore(selectActiveScenario);
+  if (!scenario) return null;
+
+  const schedule = getDeploymentSchedule(scenario);
+  const cumulative = getCumulativeDeployed(scenario);
+
+  const data = schedule.map((v, i) => ({
+    year: i,
+    'Instalaciones Anuales': v,
+    'Parque Total': cumulative[i],
+  }));
+
+  const filteredData = data.filter(d => d.year > 0 || d['Instalaciones Anuales'] > 0);
+
+  return (
+    <div className="glass-card p-5 animate-fade-in">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-white">Instalaciones Anuales y Parque Total</h3>
+        <p className="text-xs text-slate-500 mt-0.5">Volumen de medidores instalados por año y el acumulado</p>
+      </div>
+      <ResponsiveContainer width="100%" height={240}>
+        <ComposedChart data={filteredData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <XAxis
+            dataKey="year"
+            tickFormatter={(v) => `A${v}`}
+            tick={{ fill: '#64748b', fontSize: 11 }}
+            axisLine={false} tickLine={false}
+          />
+          <YAxis
+            tickFormatter={fmtMetersAxis}
+            tick={{ fill: '#64748b', fontSize: 11 }}
+            axisLine={false} tickLine={false} width={70}
+          />
+          <Tooltip 
+            contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px' }} 
+            itemStyle={{ color: '#f8fafc', fontSize: '12px' }}
+            labelStyle={{ color: '#94a3b8', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}
+            formatter={(value: number) => new Intl.NumberFormat('es-AR').format(value)}
+            labelFormatter={(label) => `Año ${label}`}
+          />
+          <Legend wrapperStyle={{ paddingTop: '12px', fontSize: '11px', color: '#94a3b8' }} />
+          <Bar dataKey="Instalaciones Anuales" fill="#0ea5e9" radius={[3, 3, 0, 0]} opacity={0.8} />
+          <Line type="monotone" dataKey="Parque Total" stroke="#38bdf8" strokeWidth={2.5} dot={{ fill: '#38bdf8', r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );

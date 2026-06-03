@@ -1,5 +1,5 @@
 // store/useStore.ts – Estado global del simulador AMI
-// Zustand + persist middleware (localStorage key: ami-simulator-v10)
+// Zustand + persist middleware (localStorage key: ami-simulator-v12)
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -27,12 +27,12 @@ export const BASELINE_SCENARIO: Scenario = {
     // Módulos de comunicación por tecnología
     commsCostWiSun:       15,
     commsCostPLC:         15,
-    commsCostP2P:         15,
-    installCost:          15,
+    commsCostP2P:         55,
+    installCost:          35,
     logisticsCostPerEndpoint: 5,
     // Infraestructura
-    concentratorCostPLC:  300,
-    focalPointCostWiSun:  300,
+    concentratorCostPLC:  700,
+    focalPointCostWiSun:  700,
     // IT Platform
     itIntegrationCost:    15_000_000,
     pmCost:               1_000_000,
@@ -84,7 +84,7 @@ export const BASELINE_SCENARIO: Scenario = {
     nonTechLossesMwh:          2394,
     recoveryRateTarget:        20,
     energyWholesaleCost:       40_000,
-    currentTariff:             120_000,
+    currentTariff:             97_200,
   },
   regulatory: {
     waccEnrePhase1:            9.99,
@@ -188,8 +188,8 @@ export const useStore = create<AMIStore>()(
         })),
     }),
     {
-      name: 'ami-simulator-v10',
-      version: 10,
+      name: 'ami-simulator-v12',
+      version: 12,
     }
   )
 );

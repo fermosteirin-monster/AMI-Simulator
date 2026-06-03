@@ -11,7 +11,7 @@ import {
 import { useStore, selectActiveScenario } from './store/useStore';
 import KpiDashboard from './components/KpiDashboard';
 import ParamPanel from './components/ParamPanel';
-import { NetCashFlowChart, CapexVsBenefitsChart, BenefitsBreakdownChart } from './components/ProjectionChart';
+import { NetCashFlowChart, CapexVsBenefitsChart, BenefitsBreakdownChart, InstallationsChart } from './components/ProjectionChart';
 import SensitivityChart from './components/SensitivityChart';
 import ScenarioCompare from './components/ScenarioCompare';
 import MultiScenarioChart from './components/MultiScenarioChart';
@@ -465,6 +465,7 @@ export default function App() {
                   <>
                     <KpiDashboard />
                     <NetCashFlowChart />
+                    <InstallationsChart />
                     {scenarios.length >= 2 && <MultiScenarioChart />}
                     <ScenarioCompare />
                   </>

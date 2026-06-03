@@ -1,6 +1,6 @@
 // DATA_MODEL.ts – Fuente de verdad de tipos e interfaces del simulador AMI
 
-export type DeploymentCurve = 'slow' | 'accelerated' | 'linear';
+export type DeploymentCurve = 'bell' | 'plateau' | 'linear';
 
 export interface GlobalParams {
   wacc: number;

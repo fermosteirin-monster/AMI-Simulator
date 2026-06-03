@@ -21,52 +21,50 @@ const CURVES: {
   svgPath: (w: number, h: number) => string;
 }[] = [
   {
-    key: 'slow',
-    label: 'Gradual (cuadrático)',
-    desc: 'Comienza lento, acelera progresivamente hacia el final',
+    key: 'bell',
+    label: 'Campana (Orgánica)',
+    desc: 'Despliegue gradual simétrico. Pico máximo a mitad del proyecto',
     color: 'text-amber-400',
     border: 'border-amber-500/40',
     activeBg: 'bg-amber-500/10',
-    // Curva cuadrática: comienza plano, sube rápido al final
     svgPath: (w, h) => {
       const pts = Array.from({ length: 20 }, (_, i) => {
         const t = i / 19;
         const x = t * w;
-        const y = h - (t * t) * h * 0.9;
+        const y = h - (0.2 + 0.8 * Math.sin(t * Math.PI)) * h * 0.9;
         return `${x},${y}`;
       });
-      return `M 0,${h} L ${pts.join(' L ')} L ${w},${h * 0.1}`;
+      return `M 0,${h} L ${pts.join(' L ')} L ${w},${h}`;
     },
   },
   {
-    key: 'accelerated',
-    label: 'Acelerado (aritmético)',
-    desc: 'Crece a ritmo creciente, entre gradual y lineal',
+    key: 'plateau',
+    label: 'Meseta (Front-loaded)',
+    desc: 'Rápida aceleración a tope de capacidad, meseta estable, y desmovilización',
     color: 'text-emerald-400',
     border: 'border-emerald-500/40',
     activeBg: 'bg-emerald-500/10',
-    // Curva exponencial: sube rápido al principio
     svgPath: (w, h) => {
       const pts = Array.from({ length: 20 }, (_, i) => {
         const t = i / 19;
-        // Exponencial limitada a 1 (se aplana al llegar al total)
-        const raw = Math.min(1, (Math.pow(2, t * 4) - 1) / (Math.pow(2, 4) - 1));
         const x = t * w;
-        const y = h - raw * h * 0.9;
+        let y = h;
+        if (t < 0.25) y = h - (0.2 + 0.8 * (t / 0.25)) * h * 0.9;
+        else if (t <= 0.75) y = h - 1.0 * h * 0.9;
+        else y = h - (0.2 + 0.8 * ((1 - t) / 0.25)) * h * 0.9;
         return `${x},${y}`;
       });
-      return `M 0,${h} L ${pts.join(' L ')} L ${w},${h * 0.1}`;
+      return `M 0,${h} L ${pts.join(' L ')} L ${w},${h}`;
     },
   },
   {
     key: 'linear',
-    label: 'Lineal (tasa constante)',
+    label: 'Lineal (Tasa Constante)',
     desc: 'Misma cantidad de instalaciones cada año tras el Año 1',
     color: 'text-brand-400',
     border: 'border-brand-500/40',
     activeBg: 'bg-brand-500/10',
-    // Línea recta
-    svgPath: (w, h) => `M 0,${h} L ${w},${h * 0.1}`,
+    svgPath: (w, h) => `M 0,${h} L 0,${h*0.6} L ${w},${h*0.6} L ${w},${h}`,
   },
 ];
 
