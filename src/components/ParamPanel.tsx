@@ -245,6 +245,8 @@ export default function ParamPanel() {
                   tooltip: 'Medidores para PyMEs y grandes usuarios.', val: scenario.capex.meterCostT2T3 },
                 { id: 'installCost',   label: 'Instalación en Campo', unit: 'USD/nodo', format: 'number'  as const, min: 0, max: 300,
                   tooltip: 'Mano de obra por medidor instalado: cuadrilla, viáticos, herramientas.', val: scenario.capex.installCost },
+                { id: 'logisticsCostPerEndpoint', label: 'Costo de Logística', unit: 'USD/nodo', format: 'number' as const, min: 0, max: 100,
+                  tooltip: 'Depósito, acopio, logística, laboratorio y disposición final por medidor.', val: scenario.capex.logisticsCostPerEndpoint ?? 0 },
               ] as const).map((p) => (
                 <motion.div key={p.id} variants={itemVariants}>
                   <ParamInput {...p} value={p.val} onChange={(v) => upd('capex', p.id, v)} />
@@ -401,18 +403,38 @@ export default function ParamPanel() {
                   <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits_op', p.id, v)} />
                 </motion.div>
               ))}
+
+              <motion.div variants={itemVariants}><SectionTitle>Gestión Comercial y Reclamos</SectionTitle></motion.div>
+              {([
+                { id: 'billingClaimsVolume', label: 'Claims de Facturación', unit: 'tickets/año', format: 'currency' as const, min: 0,
+                  tooltip: 'Tickets comerciales por consumos excesivos o lecturas erróneas.', val: scenario.benefits.billingClaimsVolume ?? 0 },
+                { id: 'backOfficeTxCost', label: 'Costo Back-Office Claims', unit: 'USD/año', format: 'currency' as const, min: 0,
+                  tooltip: 'Costo total anual de resolución de reclamos en SAP IS-U.', val: scenario.benefits.backOfficeTxCost ?? 0 },
+                { id: 'inboundCallVolume', label: 'Llamadas Inbound', unit: 'llamadas/año', format: 'currency' as const, min: 0,
+                  tooltip: 'Contactos al Call Center motivados por la exactitud de medida.', val: scenario.benefits.inboundCallVolume ?? 0 },
+                { id: 'callCenterUnitCost', label: 'Costo por Llamada', unit: 'USD/llamada', format: 'number' as const, min: 0, max: 10, step: 0.1,
+                  tooltip: 'Costo de outsourcing Call Center por llamada.', val: scenario.benefits.callCenterUnitCost ?? 0 },
+                { id: 'deviceDamageClaims', label: 'Resarcimiento Artefactos', unit: 'USD/año', format: 'currency' as const, min: 0,
+                  tooltip: 'Gasto histórico en indemnizaciones por daños de artefactos de clientes.', val: scenario.benefits.deviceDamageClaims ?? 0 },
+                { id: 'deviceDamageAvoidance', label: 'Mejora Resarcimientos', unit: '%', format: 'percent' as const, min: 0, max: 100,
+                  tooltip: 'Porcentaje de reclamos improcedentes evitables mediante telemetría.', val: scenario.benefits.deviceDamageAvoidance ?? 0 },
+              ] as const).map((p) => (
+                <motion.div key={p.id} variants={itemVariants}>
+                  <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits_op', p.id, v)} />
+                </motion.div>
+              ))}
             </>)}
 
             {/* ── BENEFICIOS AGR (Agregados) ───────────────────────────── */}
             {activeTab === 'benefits_agr' && (<>
               <motion.div variants={itemVariants}><SectionTitle>Calidad y Multas ENRE</SectionTitle></motion.div>
               {([
-                { id: 'saidiHistoricalHours', label: 'SAIDI Histórico',           unit: 'horas/año', format: 'number'   as const, min: 0, max: 100, step: 0.5, val: scenario.benefits.saidiHistoricalHours,
+                { id: 'saidiHistoricalHours', label: 'SAIDI Histórico BT',       unit: 'min/año', format: 'number'   as const, min: 0, max: 2000, step: 10, val: scenario.benefits.saidiHistoricalHours,
                   tooltip: 'Duración media de interrupción por usuario al año (histórico Edesur).' },
                 { id: 'saidiTargetReduction', label: 'Reducción SAIDI Esperada', unit: '%',          format: 'percent'  as const, min: 0, max: 80, val: scenario.benefits.saidiTargetReduction,
                   tooltip: 'Reducción porcentual del SAIDI atribuible al AMI (detección temprana de fallas).' },
-                { id: 'finePerHour',          label: 'Multa por Hora SAIDI',     unit: 'USD/hora',   format: 'currency' as const, min: 0, val: scenario.benefits.finePerHour,
-                  tooltip: 'Penalidad regulatoria ENRE por cada hora de SAIDI sobre el umbral.' },
+                { id: 'finePerHour',          label: 'Multa por Minuto SAIDI',   unit: 'USD/min',   format: 'currency' as const, min: 0, val: scenario.benefits.finePerHour,
+                  tooltip: 'Penalidad regulatoria ENRE por cada minuto de SAIDI sobre el umbral.' },
                 { id: 'estFinesAnnual',       label: 'Ahorro Multas por Estimación', unit: 'M USD/año',  format: 'millions' as const, min: 0, val: scenario.benefits.estFinesAnnual,
                   tooltip: 'Total de multas ENRE por facturación estimada que el AMI elimina. Escala con el avance del despliegue.' },
               ] as const).map((p) => (
@@ -447,13 +469,13 @@ export default function ParamPanel() {
               ))}
               <motion.div variants={itemVariants}><SectionTitle>Fraude y Pérdidas No Técnicas</SectionTitle></motion.div>
               {([
-                { id: 'nonTechLossesMwh',   label: 'Pérdidas No Técnicas',     unit: 'MWh/año',   format: 'currency' as const, min: 0, val: scenario.benefits.nonTechLossesMwh,
+                { id: 'nonTechLossesMwh',   label: 'Pérdidas No Técnicas',     unit: 'GWh/año',   format: 'currency' as const, min: 0, val: scenario.benefits.nonTechLossesMwh,
                   tooltip: 'Energía distribuida no cobrada: fraude, derivaciones clandestinas.' },
                 { id: 'recoveryRateTarget', label: 'Tasa de Recuperación AMI', unit: '%',          format: 'percent'  as const, min: 0, max: 100, val: scenario.benefits.recoveryRateTarget,
                   tooltip: 'Porcentaje de pérdidas no técnicas que el AMI logra recuperar.' },
-                { id: 'energyWholesaleCost',label: 'Costo Energía en MEM',     unit: 'USD/MWh',   format: 'number'   as const, min: 0, max: 200, val: scenario.benefits.energyWholesaleCost,
+                { id: 'energyWholesaleCost',label: 'Costo Energía en MEM',     unit: 'USD/GWh',   format: 'number'   as const, min: 0, max: 500000, val: scenario.benefits.energyWholesaleCost,
                   tooltip: 'Costo de compra de energía en el MEM (Mercado Eléctrico Mayorista).' },
-                { id: 'currentTariff',      label: 'Tarifa Comercial Vigente', unit: 'USD/MWh',   format: 'number'   as const, min: 0, max: 500, val: scenario.benefits.currentTariff,
+                { id: 'currentTariff',      label: 'Tarifa Comercial Vigente', unit: 'USD/GWh',   format: 'number'   as const, min: 0, max: 500000, val: scenario.benefits.currentTariff,
                   tooltip: 'Precio de venta al usuario final. El margen = Tarifa − Costo MEM.' },
               ] as const).map((p) => (
                 <motion.div key={p.id} variants={itemVariants}>

@@ -143,20 +143,26 @@ progress[y] = cumulative[y] / M       (entre 0 y 1)
 
 ---
 
-## 4. Mix Tecnológico
+## 4. Mix Tecnológico y Hardware
 
-El mix tecnológico determina los costos de CAPEX (módulos de comunicación e infraestructura) y OPEX (M2M telecom) de forma proporcional.
+El mix determina los costos de CAPEX ponderado.
 
-### 4.1 Costo de comunicaciones ponderado por medidor
+### 4.1 Costo de hardware y comunicaciones ponderado por medidor
 
+**Medidor Físico:**
+```
+C_hw_ponderado = (α_t1/100) · C_hw_t1  +  (α_t2t3/100) · C_hw_t2t3
+```
+
+**Módulo de Comunicación:**
 ```
 C_comms = (α_ws/100) · C_comms_ws  +  (α_plc/100) · C_comms_plc  +  (α_p2p/100) · C_comms_p2p
 ```
 
 Donde:
-- `C_comms_ws` = costo del módulo Wi-SUN por medidor (USD)
-- `C_comms_plc` = costo del módulo PLC por medidor (USD)
-- `C_comms_p2p` = costo del módulo celular/NB-IoT por medidor (USD)
+- `C_hw_t1` = costo del medidor monofásico (USD)
+- `C_hw_t2t3` = costo del medidor trifásico (USD)
+- `C_comms_ws`, `C_comms_plc`, `C_comms_p2p` = costo del módulo por tecnología (USD)
 
 ### 4.2 Infraestructura de concentración
 
@@ -203,11 +209,11 @@ Para cada año `y` del despliegue:
 
 **Costo unitario por medidor:**
 ```
-C_medidor[y] = C_hw  +  C_comms  +  C_install
+C_medidor[y] = C_hw_ponderado  +  C_comms  +  C_install
 ```
 
 Donde:
-- `C_hw` = costo de hardware del medidor (monofásico T1, en USD)
+- `C_hw_ponderado` = costo de hardware base (Sección 4.1)
 - `C_comms` = módulo de comunicación ponderado (Sección 4.1)
 - `C_install` = costo de instalación en campo por medidor (mano de obra, viáticos)
 
@@ -408,10 +414,33 @@ B_P3[y] = MWh_recuperados[y] · max(0, Margen_MWh)
 
 ---
 
-### 7.1 Beneficio Total del Año
+### 7.1 Beneficio Total Operativo del Año
 
 ```
 B_total[y] = B_P1[y]  +  B_P2[y]  +  B_P3[y]
+```
+
+---
+
+## 7.5 Reconocimiento Regulatorio (VAD - Ingresos ENRE)
+
+La inversión en AMI es compensada por el ENRE mediante el Retorno sobre la Base de Capital (RAB) y Amortización en dos fases.
+
+**Fase 1 (Años 1 a 4):**
+El CAPEX reconocido es fijo (`C_rec_f1`) y se aplica el `WACC_ENRE_1`.
+```
+VAD_F1[y] = Amortizacion_F1_del_Año  +  (RAB_Remanente_F1 · WACC_ENRE_1)
+```
+
+**Fase 2 (Año 5 en adelante):**
+El CAPEX reconocido se ajusta al costo real invertido y se aplica el `WACC_ENRE_2`.
+```
+VAD_F2[y] = Amortizacion_F2_del_Año  +  (RAB_Remanente_F2 · WACC_ENRE_2)
+```
+
+**Ingreso Regulatorio Total:**
+```
+VAD_total[y] = VAD_F1[y] + VAD_F2[y]
 ```
 
 ---
@@ -421,7 +450,7 @@ B_total[y] = B_P1[y]  +  B_P2[y]  +  B_P3[y]
 ### 8.1 Flujo neto de caja del año `y`
 
 ```
-FCF[y] = B_total[y]  −  OPEX[y]  −  CAPEX[y]
+FCF[y] = B_total[y]  +  VAD_total[y]  −  OPEX[y]  −  CAPEX[y]
 ```
 
 ### 8.2 VPN Total del Proyecto
@@ -430,12 +459,30 @@ FCF[y] = B_total[y]  −  OPEX[y]  −  CAPEX[y]
 VPN = Σ_{y=0}^{N} FCF[y] / (1 + WACC/100)^y
 ```
 
-El denominador `(1 + r)^y` descuenta cada flujo al valor presente del Año 0, reflejando el costo de oportunidad del capital (WACC).
+El denominador `(1 + r)^y` descuenta cada flujo al valor presente del Año 0, reflejando el costo de oportunidad del capital corporativo (WACC).
 
 **Interpretación:**
 - VPN > 0: el proyecto genera valor por encima del costo del capital → viable
 - VPN < 0: el proyecto destruye valor → requiere revisión de supuestos
 - VPN = 0: el proyecto retorna exactamente el WACC → punto de indiferencia
+
+### 8.3 TIR (Tasa Interna de Retorno)
+Es la tasa de descuento `r` que hace que el VPN sea exactamente 0. Calculada por iteración numérica (Secante).
+```
+TIR = r | VPN(r) = 0
+```
+
+### 8.4 ROI (Retorno sobre Inversión)
+Métrica nominal sin descontar el valor temporal del dinero.
+```
+ROI = ( Σ(B_total + VAD_total - OPEX) - Σ CAPEX ) / Σ CAPEX
+```
+
+### 8.5 Profitability Index (PI)
+Relación costo-beneficio a valores presentes.
+```
+PI = VPN(Flujos_Positivos) / VPN(Outflows)
+```
 
 ### 8.3 VPN Acumulado por año
 
@@ -506,81 +553,86 @@ Los parámetros se ordenan de mayor a menor `|Δ_VPN|` para identificar los fact
 
 | Parámetro | Símbolo | Valor base | Descripción |
 |---|---|---|---|
-| WACC | r | 14% | Costo de capital en USD, incluye riesgo país Argentina |
+| WACC | r | 9.99% | Costo de capital corporativo en USD |
 | Horizonte | N | 8 años | Período de evaluación financiera |
-| Total endpoints | M | 2.500.000 | Universo de medidores a desplegar (clientes Edesur) |
-| Tipo de cambio | TC | 1.200 ARS/USD | Referencia para costos en pesos |
-| % Wi-SUN | α_ws | 0% | Medidores con tecnología Wi-SUN mesh |
-| % PLC | α_plc | 0% | Medidores con tecnología Power Line Communication |
-| % P2P | α_p2p | 100% | Medidores con SIM celular/NB-IoT (derivado) |
+| Total endpoints | M | 2.500.000 | Universo de medidores a desplegar |
+| Mix T1 | α_t1 | 90% | Medidores monofásicos (derivado) |
+| Mix T2/T3 | α_t2t3 | 10% | Medidores trifásicos / directos |
+| % Wi-SUN | α_ws | 50% | Medidores con tecnología Wi-SUN mesh |
+| % PLC | α_plc | 45% | Medidores con tecnología Power Line Communication |
+| % P2P | α_p2p | 5% | Medidores con SIM celular/NB-IoT (derivado) |
+
+### Regulatorio (VAD)
+
+| Parámetro | Símbolo | Valor base | Descripción |
+|---|---|---|---|
+| WACC ENRE F1 | WACC_ENRE_1 | 9.99% | Tasa RAB Fase 1 (1-4 años) |
+| WACC ENRE F2 | WACC_ENRE_2 | 9.99% | Tasa RAB Fase 2 (5+ años) |
+| CAPEX Medidor F1 | C_rec_f1 | USD 126 | Valor unitario reconocido en Fase 1 |
+| Vida Útil Medidores| Vida_Med | 25 años | Periodo de amortización de medidores |
+| Vida Útil IT | Vida_IT | 10 años | Periodo de amortización de IT |
+| Subsidio ENRE IT | Subsidio_IT | USD 5.0M | Aporte no reembolsable deducible del RAB IT |
 
 ### CAPEX
 
 | Parámetro | Símbolo | Valor base | Descripción |
 |---|---|---|---|
-| Medidor T1 | C_hw | USD 55 | Costo CIF monofásico residencial |
-| Medidor T2/T3 | — | USD 120 | Costo CIF trifásico PyMEs |
+| Medidor T1 | C_hw_t1 | USD 50 | Costo CIF monofásico |
+| Medidor T2/T3 | C_hw_t2t3 | USD 100 | Costo CIF trifásico |
 | Módulo Wi-SUN | C_comms_ws | USD 15 | Módulo de comunicación mesh |
-| Módulo PLC | C_comms_plc | USD 12 | Módulo de comunicación powerline |
-| Módulo P2P | C_comms_p2p | USD 22 | Módulo celular/NB-IoT con SIM |
-| Instalación | C_install | USD 18 | Mano de obra por medidor |
-| Concentrador PLC | C_conc_plc | USD 3.200 | Equipo concentrador PLC (1 c/250 nodos) |
-| Focal Point WS | C_fp_ws | USD 8.500 | Gateway Wi-SUN mesh (1 c/5.000 nodos) |
-| Integración IT | C_IT | USD 15M | Plataforma MDM, SAP, ciberseguridad (distribuido años 0-5) |
-| IT Schedule | pct_IT | 40/30/20/10/0/0 | % de distribución anual de Integración IT |
-| Project Mgmt | C_PM | USD 8M | Gerencia de proyecto (año 0) |
+| Módulo PLC | C_comms_plc | USD 0 | Módulo de comunicación powerline |
+| Módulo P2P | C_comms_p2p | USD 25 | Módulo celular/NB-IoT con SIM |
+| Instalación | C_install | USD 15 | Mano de obra por medidor |
+| Concentrador PLC | C_conc_plc | USD 300 | Equipo concentrador PLC (1 c/250 nodos) |
+| Focal Point WS | C_fp_ws | USD 300 | Gateway Wi-SUN mesh (1 c/5.000 nodos) |
+| Integración IT | C_IT | USD 15M | Plataforma MDM, SAP, ciberseguridad (distribuido) |
+| Project Mgmt | C_PM | USD 1M | Gerencia de proyecto (año 0) |
 
 ### OPEX
 
 | Parámetro | Símbolo | Valor base | Descripción |
 |---|---|---|---|
-| Abono M2M | C_m2m | USD 0,85/mes | Costo mensual SIM por medidor P2P |
-| Licencias SaaS | OPEX_saas | USD 4M/año | MDM, SCADA/OMS, Analytics |
-| Cloud | C_cloud | USD 120K/mes | Almacenamiento y procesamiento cloud |
-| Mantenimiento | OPEX_mant | USD 6M/año | Reposición equipos, mantenimiento campo |
-| Administración | OPEX_admin | USD 2,5M/año | NOC, analistas, RRHH especializado |
+| Abono M2M | C_m2m | USD 0,30/mes | Costo mensual SIM por medidor P2P |
+| Licencias SaaS | OPEX_saas | USD 200K/año | MDM, SCADA/OMS, Analytics |
+| Cloud | C_cloud | USD 5K/mes | Almacenamiento y procesamiento cloud |
+| Mantenimiento | OPEX_mant | USD 500K/año | Reposición equipos, mantenimiento campo |
+| Administración | OPEX_admin | USD 500K/año | NOC, analistas, RRHH especializado |
 
 ### Beneficios
 
 | Parámetro | Símbolo | Valor base | Descripción |
 |---|---|---|---|
-| Lecturas anuales | V_lecturas | 2.500.000 | Lecturas pedestres actuales |
-| Costo por lectura | C_lectura | USD 3,50 | Costo unitario de lectura manual |
-| Cortes físicos | V_cortes | 180.000/año | Órdenes de corte con cuadrilla |
-| Improductivas | V_improductivas | 75.000/año | Visitas evitadas por falso corte / restablecimiento previo |
-| Reiteradas | V_reiteradas | 27.000/año | Visitas evitadas por cierre remoto seguro |
+| Lecturas anuales | V_lecturas | 25.000.000 | Lecturas pedestres actuales |
+| Costo por lectura | C_lectura | USD 1,00 | Costo unitario de lectura manual |
+| Cortes físicos | V_cortes | 200.000/año | Órdenes de corte con cuadrilla |
+| Improductivas | V_improductivas | 70.000/año | Visitas evitadas por falso corte / restablecimiento previo |
+| Reiteradas | V_reiteradas | 30.000/año | Visitas evitadas por cierre remoto seguro |
 | Visitas calidad | V_calidad | 20.000/año | Visitas evitadas por oscilaciones diagnosticadas remotamente |
-| Repos físicas | V_repos | 180.000/año | Órdenes de reposición con cuadrilla |
-| Costo cuadrilla | C_cuadrilla | USD 38 | Costo por visita en campo para cortes y repos |
-| Costo guardia | C_guardia | USD 52 | Costo por salida de cuadrilla de guardia |
-| SAIDI histórico | H_SAIDI | 18 hs/año | Horas de interrupción promedio anuales |
-| Reducción SAIDI | r_SAIDI | 30% | Mejora esperada con AMI |
-| Multa SAIDI | C_multa | USD 850K/hora | Penalidad regulatoria por hora |
-| Multas estimación | M_estimaciones | USD 3,2M/año | Multas ENRE por lecturas estimadas |
-| Multa aparcamiento | M_aparcamiento | USD 0/año | Multa base por Aparcamiento |
-| Mejora aparcam. | r_aparcamiento | 30% | % de reducción esperada |
-| Multa incumpl. | M_incumplimiento | USD 0/año | Multa base por Incumplimiento |
-| Mejora incumpl. | r_incumplimiento | 30% | % de reducción esperada |
-| Pérdidas NT | L_NT | 850.000 MWh/año | Pérdidas no técnicas (hurto energía) |
-| Recuperación AMI | r_rec | 42% | Fracción recuperable con AMI |
-| Costo MEM | C_MEM | USD 42/MWh | Precio energía mercado mayorista |
-| Tarifa comercial | T_tarifa | USD 95/MWh | Precio promedio facturación clientes |
+| Repos físicas | V_repos | 170.000/año | Órdenes de reposición con cuadrilla |
+| Costo cuadrilla | C_cuadrilla | USD 15 | Costo por visita regular |
+| Costo guardia | C_guardia | USD 20 | Costo por visita de guardia urgencia |
+| SAIDI histórico | H_SAIDI | 900 hs/año | Horas de interrupción promedio anuales |
+| Reducción SAIDI | r_SAIDI | 10% | Mejora esperada con AMI |
+| Multa SAIDI | C_multa | USD 100K/hora | Penalidad regulatoria por hora |
+| Multas estimación | M_estimaciones | USD 500K/año | Multas ENRE por lecturas estimadas |
+| Multa aparcamiento | M_aparcamiento | USD 10.0M/año | Multa base por Aparcamiento |
+| Mejora aparcam. | r_aparcamiento | 20% | % de reducción esperada |
+| Multa incumpl. | M_incumplimiento | USD 2.0M/año | Multa base por Incumplimiento |
+| Mejora incumpl. | r_incumplimiento | 70% | % de reducción esperada |
+| Pérdidas NT | L_NT | 100.000 MWh/año | Pérdidas no técnicas (hurto energía) |
+| Recuperación AMI | r_rec | 20% | Fracción recuperable con AMI |
+| Costo MEM | C_MEM | USD 30/MWh | Precio energía mercado mayorista |
+| Tarifa comercial | T_tarifa | USD 50/MWh | Precio promedio facturación clientes |
 
 ---
 
 ## Notas Metodológicas
 
-1. **Moneda:** Todos los valores en USD constantes. Los costos en ARS se convierten usando el tipo de cambio de referencia ingresado.
-
+1. **Hardware Ponderado:** El costo unitario de cada medidor se calcula multiplicando dinámicamente el precio del medidor por su penetración (T1 vs T2/T3) sumado al módulo de comunicación ponderado (Wi-SUN vs PLC vs P2P).
 2. **Conservadurismo de beneficios:** Solo se computan beneficios directamente cuantificables. No se incluyen beneficios intangibles (imagen de marca, satisfacción del cliente, habilitación de nuevos modelos de negocio).
-
 3. **Infraestructura proporcional:** Los concentradores PLC y focal points Wi-SUN se adquieren en proporción a los medidores instalados cada año, no como inversión única inicial.
-
-4. **M2M diferenciado:** El costo de telecom solo aplica a medidores P2P (con SIM). Los medidores Wi-SUN y PLC no tienen abono M2M mensual, lo que reduce significativamente el OPEX en mixes tecnológicos mixtos.
-
-5. **Progreso acumulado:** Los beneficios no siguen la curva de instalación anual sino la curva acumulada. Un medidor instalado en el Año 2 genera beneficios en los Años 3, 4, ..., N.
-
-6. **Breakeven descontado:** El cálculo de payback utiliza flujos descontados (no nominales), siendo un indicador más conservador y financieramente correcto que el payback simple.
+4. **M2M diferenciado:** El costo de telecom solo aplica a medidores P2P (con SIM). Los medidores Wi-SUN y PLC no tienen abono M2M mensual, lo que reduce significativamente el OPEX.
+5. **Reconocimiento Regulatorio (RAB):** La Fase 1 utiliza un CAPEX reconocido fijo. La Fase 2 ajusta la base de capital a los valores nominales invertidos.
 
 ---
 

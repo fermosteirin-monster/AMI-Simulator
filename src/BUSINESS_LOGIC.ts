@@ -131,8 +131,8 @@ export function calculateCapexForYear(scenario: Scenario, year: number): number 
   const t1Pct = Math.max(0, 100 - t2t3Pct);
   const weightedMeterCost = (t1Pct / 100) * capex.meterCostT1 + (t2t3Pct / 100) * capex.meterCostT2T3;
 
-  // Costo de hardware + instalación por medidor
-  const perMeterCost = weightedMeterCost + weightedCommsCost + capex.installCost;
+  // Costo de hardware + instalación + logística por medidor
+  const perMeterCost = weightedMeterCost + weightedCommsCost + capex.installCost + (capex.logisticsCostPerEndpoint ?? 0);
 
   // Infraestructura proporcional a medidores de este año
   const plcMeters      = metersThisYear * (plcPct   / 100);
@@ -209,12 +209,17 @@ export function calculateBenefitsForYear(scenario: Scenario, year: number): numb
      benefits.nonComplianceFineAnnual * ((benefits.nonComplianceFineImprovement ?? 0) / 100)) *
     progress;
 
+  // Palanca 4: Beneficios Comerciales (Back-Office y Call Center)
+  const claimsSavings = (benefits.backOfficeTxCost ?? 0) * progress;
+  const callCenterSavings = ((benefits.inboundCallVolume ?? 0) * (benefits.callCenterUnitCost ?? 0)) * progress;
+  const deviceDamageSavings = ((benefits.deviceDamageClaims ?? 0) * ((benefits.deviceDamageAvoidance ?? 0) / 100)) * progress;
+
   // Palanca 3: Recuperación pérdidas no técnicas
   const mwhRecovered     = benefits.nonTechLossesMwh * (benefits.recoveryRateTarget / 100) * progress;
   const revenuePerMwh    = benefits.currentTariff - benefits.energyWholesaleCost;
   const fraudBenefit     = mwhRecovered * Math.max(0, revenuePerMwh);
 
-  return productivitySavings + readingSavings + dispatchSavings + saidiBenefit + estFinesBenefit + qualityFinesBenefit + fraudBenefit;
+  return productivitySavings + readingSavings + dispatchSavings + saidiBenefit + estFinesBenefit + qualityFinesBenefit + claimsSavings + callCenterSavings + deviceDamageSavings + fraudBenefit;
 }
 
 // ── INGRESOS VAD (ENRE) ───────────────────────────────────────────────────

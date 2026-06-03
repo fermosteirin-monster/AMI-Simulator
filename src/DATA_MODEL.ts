@@ -20,6 +20,7 @@ export interface CapexParams {
   commsCostPLC: number;
   commsCostP2P: number;
   installCost: number;
+  logisticsCostPerEndpoint: number;
   // Infraestructura de concentración
   concentratorCostPLC: number;   // 1 cada 250 conexiones PLC
   focalPointCostWiSun: number;   // 1 cada 5000 conexiones Wi-SUN
@@ -55,6 +56,13 @@ export interface BenefitParams {
   unproductiveVisitsAvoided: number;  // Visitas improductivas (~30% tasa actual)
   reiterativeVisitsAvoided: number;   // Visitas reiteradas (~15% tasa actual)
   qualityVisitsAvoided: number;       // Visitas calidad de producto (oscilaciones/BT)
+  // ── Comercial / Call Center ────────────────────────────────────────────────
+  billingClaimsVolume: number;
+  backOfficeTxCost: number;
+  inboundCallVolume: number;
+  callCenterUnitCost: number;
+  deviceDamageClaims: number;
+  deviceDamageAvoidance: number;
   // ── Agregados / Agrupados ──────────────────────────────────────────────────
   saidiHistoricalHours: number;
   saidiTargetReduction: number;
