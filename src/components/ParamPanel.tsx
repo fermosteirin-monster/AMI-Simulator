@@ -429,11 +429,11 @@ export default function ParamPanel() {
             {activeTab === 'benefits_agr' && (<>
               <motion.div variants={itemVariants}><SectionTitle>Calidad y Multas ENRE</SectionTitle></motion.div>
               {([
-                { id: 'saidiHistoricalHours', label: 'SAIDI Histórico BT',       unit: 'min/año', format: 'number'   as const, min: 0, max: 2000, step: 10, val: scenario.benefits.saidiHistoricalHours,
-                  tooltip: 'Duración media de interrupción por usuario al año (histórico Edesur).' },
+                { id: 'saidiHistoricalMinutes', label: 'SAIDI Histórico BT',       unit: 'min/año', format: 'number'   as const, min: 0, max: 2000, step: 10, val: scenario.benefits.saidiHistoricalMinutes,
+                  tooltip: 'Duración media de interrupción por usuario al año en minutos (histórico).' },
                 { id: 'saidiTargetReduction', label: 'Reducción SAIDI Esperada', unit: '%',          format: 'percent'  as const, min: 0, max: 80, val: scenario.benefits.saidiTargetReduction,
                   tooltip: 'Reducción porcentual del SAIDI atribuible al AMI (detección temprana de fallas).' },
-                { id: 'finePerHour',          label: 'Multa por Minuto SAIDI',   unit: 'USD/min',   format: 'currency' as const, min: 0, val: scenario.benefits.finePerHour,
+                { id: 'finePerMinute',         label: 'Multa por Minuto SAIDI',   unit: 'USD/min',   format: 'currency' as const, min: 0, val: scenario.benefits.finePerMinute,
                   tooltip: 'Penalidad regulatoria ENRE por cada minuto de SAIDI sobre el umbral.' },
                 { id: 'estFinesAnnual',       label: 'Ahorro Multas por Estimación', unit: 'M USD/año',  format: 'millions' as const, min: 0, val: scenario.benefits.estFinesAnnual,
                   tooltip: 'Total de multas ENRE por facturación estimada que el AMI elimina. Escala con el avance del despliegue.' },
@@ -450,12 +450,12 @@ export default function ParamPanel() {
                 </div>
               </motion.div>
               {([
-                { id: 'parkingFineAnnual',           label: 'Aparcamiento — Monto Total',    unit: 'M USD/año', format: 'millions' as const, min: 0,
-                  tooltip: 'Monto total anual de multas por Aparcamiento. El AMI mejora el indicador al reducir tiempos de detección.',
-                  val: scenario.benefits.parkingFineAnnual },
-                { id: 'parkingFineImprovement',      label: 'Aparcamiento — % Mejora AMI',   unit: '%',          format: 'percent'  as const, min: 0, max: 100,
-                  tooltip: 'Porcentaje de reducción de la multa de Aparcamiento atribuible al despliegue AMI.',
-                  val: scenario.benefits.parkingFineImprovement },
+                { id: 'apartamientoFineAnnual',       label: 'Apartamiento — Monto Total',    unit: 'M USD/año', format: 'millions' as const, min: 0,
+                  tooltip: 'Monto total anual de multas por Apartamiento. El AMI mejora el indicador al reducir tiempos de detección.',
+                  val: scenario.benefits.apartamientoFineAnnual },
+                { id: 'apartamientoFineImprovement', label: 'Apartamiento — % Mejora AMI',   unit: '%',          format: 'percent'  as const, min: 0, max: 100,
+                  tooltip: 'Porcentaje de reducción de la multa de Apartamiento atribuible al despliegue AMI.',
+                  val: scenario.benefits.apartamientoFineImprovement },
                 { id: 'nonComplianceFineAnnual',     label: 'Incumplimiento — Monto Total',  unit: 'M USD/año', format: 'millions' as const, min: 0,
                   tooltip: 'Monto total anual de multas por Incumplimiento. El AMI mejora la respuesta operativa.',
                   val: scenario.benefits.nonComplianceFineAnnual },
@@ -469,8 +469,8 @@ export default function ParamPanel() {
               ))}
               <motion.div variants={itemVariants}><SectionTitle>Fraude y Pérdidas No Técnicas</SectionTitle></motion.div>
               {([
-                { id: 'nonTechLossesMwh',   label: 'Pérdidas No Técnicas',     unit: 'GWh/año',   format: 'currency' as const, min: 0, val: scenario.benefits.nonTechLossesMwh,
-                  tooltip: 'Energía distribuida no cobrada: fraude, derivaciones clandestinas.' },
+                { id: 'nonTechLossesGwh',    label: 'Pérdidas No Técnicas',     unit: 'GWh/año',   format: 'currency' as const, min: 0, val: scenario.benefits.nonTechLossesGwh,
+                  tooltip: 'Energía distribuida no cobrada en GWh: fraude, derivaciones clandestinas.' },
                 { id: 'recoveryRateTarget', label: 'Tasa de Recuperación AMI', unit: '%',          format: 'percent'  as const, min: 0, max: 100, val: scenario.benefits.recoveryRateTarget,
                   tooltip: 'Porcentaje de pérdidas no técnicas que el AMI logra recuperar.' },
                 { id: 'energyWholesaleCost',label: 'Costo Energía en MEM',     unit: 'USD/GWh',   format: 'number'   as const, min: 0, max: 500000, val: scenario.benefits.energyWholesaleCost,

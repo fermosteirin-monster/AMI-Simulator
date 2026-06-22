@@ -64,16 +64,16 @@ export interface BenefitParams {
   deviceDamageClaims: number;
   deviceDamageAvoidance: number;
   // ── Agregados / Agrupados ──────────────────────────────────────────────────
-  saidiHistoricalHours: number;
+  saidiHistoricalMinutes: number;  // minutos de interrupción SAIDI histórico anual
   saidiTargetReduction: number;
-  finePerHour: number;
+  finePerMinute: number;           // USD por minuto de SAIDI
   estFinesAnnual: number;
   // Multas de Calidad de Producto (escalan con progress)
-  parkingFineAnnual: number;            // Monto total multa Aparcamiento (M USD/año actual)
-  parkingFineImprovement: number;       // % de mejora atribuible al AMI
-  nonComplianceFineAnnual: number;      // Monto total multa Incumplimiento (M USD/año actual)
+  apartamientoFineAnnual: number;        // Monto total multa Apartamiento (USD/año actual)
+  apartamientoFineImprovement: number;  // % de mejora atribuible al AMI
+  nonComplianceFineAnnual: number;      // Monto total multa Incumplimiento (USD/año actual)
   nonComplianceFineImprovement: number; // % de mejora atribuible al AMI
-  nonTechLossesMwh: number;
+  nonTechLossesGwh: number;            // Pérdidas no técnicas en GWh/año
   recoveryRateTarget: number;
   energyWholesaleCost: number;
   currentTariff: number;
@@ -103,7 +103,9 @@ export interface Scenario {
 export interface YearlyProjection {
   year: number;
   metersDeployedThisYear: number;
-  cumulativeMeters: number;
+  installations: number;
+  cumulative: number;
+  progress: number;
   capex: number;
   opex: number;
   benefits: number;

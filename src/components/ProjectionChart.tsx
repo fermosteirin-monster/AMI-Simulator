@@ -218,9 +218,9 @@ export function BenefitsBreakdownChart() {
          ((benefits.annualCutsVolume + benefits.annualReposVolume) * benefits.dispatchCost)) * progress;
       const savingsFines =
         (benefits.estFinesAnnual +
-         (benefits.saidiHistoricalHours * (benefits.saidiTargetReduction / 100) * benefits.finePerHour)) * progress;
+         (benefits.saidiHistoricalMinutes * (benefits.saidiTargetReduction / 100) * benefits.finePerMinute)) * progress;
       const fraudRecovery =
-        (benefits.nonTechLossesMwh * (benefits.recoveryRateTarget / 100) *
+        (benefits.nonTechLossesGwh * (benefits.recoveryRateTarget / 100) *
          (benefits.currentTariff - benefits.energyWholesaleCost)) * progress;
 
       return {

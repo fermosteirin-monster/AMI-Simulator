@@ -4,7 +4,7 @@ import { getDeploymentSchedule, getCumulativeDeployed, deriveP2pPct } from '../B
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).replace(/,/g, '');
 
 export function generateDetailedCSV(scenario: Scenario): string {
-  const { global, capex, opex, benefits, regulatory } = scenario;
+  const { global, capex, opex, benefits } = scenario;
   const horizon = global.analysisHorizonYears;
   const schedule = getDeploymentSchedule(scenario);
   const cumulative = getCumulativeDeployed(scenario);
@@ -17,7 +17,7 @@ export function generateDetailedCSV(scenario: Scenario): string {
     rows.push([year.toString(), `"${cat}"`, `"${metric}"`, `"${formula}"`, `"${values}"`, result.toFixed(2)]);
   };
 
-  const reg = regulatory || { waccEnrePhase1: 9.99, waccEnrePhase2: 9.99, recognizedMeterCapexPhase1: 126, meterRegulatoryLife: 25, itRegulatoryLife: 10, enreItSubsidy: 0 };
+
   const { wiSunPct, plcPct, t2t3Pct = 0 } = global;
   const p2pPct = deriveP2pPct(wiSunPct, plcPct);
   const t1Pct = Math.max(0, 100 - t2t3Pct);
@@ -80,24 +80,22 @@ export function generateDetailedCSV(scenario: Scenario): string {
       const guardSavings = (benefits.annualReposVolume * benefits.guardDispatchCost) * progress;
       addRow(year, 'BENEFICIOS', 'Guardia Operativa', 'Volumen_Reposiciones * Costo_Despacho_Guardia * Progreso_Despliegue', `${fmt(benefits.annualReposVolume)} * ${fmt(benefits.guardDispatchCost)} * ${fmt(progress * 100)}%`, guardSavings);
 
-      const saidiBenefit = (benefits.saidiHistoricalHours * (benefits.saidiTargetReduction / 100) * benefits.finePerHour) * progress;
-      addRow(year, 'BENEFICIOS', 'Multas SAIDI/SAIFI', 'Horas_Historicas * %Reducción * Costo_Hora * Progreso_Despliegue', `${fmt(benefits.saidiHistoricalHours)} * ${fmt(benefits.saidiTargetReduction)}% * ${fmt(benefits.finePerHour)} * ${fmt(progress * 100)}%`, saidiBenefit);
+      const saidiBenefit = (benefits.saidiHistoricalMinutes * (benefits.saidiTargetReduction / 100) * benefits.finePerMinute) * progress;
+      addRow(year, 'BENEFICIOS', 'Multas SAIDI/SAIFI', 'Min_Historicos * %Reducción * Costo_Min * Progreso_Despliegue', `${fmt(benefits.saidiHistoricalMinutes)} * ${fmt(benefits.saidiTargetReduction)}% * ${fmt(benefits.finePerMinute)} * ${fmt(progress * 100)}%`, saidiBenefit);
 
       const estFinesBenefit = benefits.estFinesAnnual * progress;
       addRow(year, 'BENEFICIOS', 'Ahorro Multas Estimación', 'Monto_Anual * Progreso_Despliegue', `${fmt(benefits.estFinesAnnual)} * ${fmt(progress * 100)}%`, estFinesBenefit);
 
-      const parkingBenefit = benefits.parkingFineAnnual * (benefits.parkingFineImprovement / 100) * progress;
-      addRow(year, 'BENEFICIOS', 'Multas Calidad (Aparcamiento)', 'Monto_Anual * %Mejora * Progreso_Despliegue', `${fmt(benefits.parkingFineAnnual)} * ${fmt(benefits.parkingFineImprovement)}% * ${fmt(progress * 100)}%`, parkingBenefit);
+      const parkingBenefit = benefits.apartamientoFineAnnual * (benefits.apartamientoFineImprovement / 100) * progress;
+      addRow(year, 'BENEFICIOS', 'Multas Calidad (Apartamiento)', 'Monto_Anual * %Mejora * Progreso_Despliegue', `${fmt(benefits.apartamientoFineAnnual)} * ${fmt(benefits.apartamientoFineImprovement)}% * ${fmt(progress * 100)}%`, parkingBenefit);
 
       const nonComplianceBenefit = benefits.nonComplianceFineAnnual * (benefits.nonComplianceFineImprovement / 100) * progress;
       addRow(year, 'BENEFICIOS', 'Multas Calidad (Incumplimiento)', 'Monto_Anual * %Mejora * Progreso_Despliegue', `${fmt(benefits.nonComplianceFineAnnual)} * ${fmt(benefits.nonComplianceFineImprovement)}% * ${fmt(progress * 100)}%`, nonComplianceBenefit);
 
-      const fraudBenefit = (benefits.nonTechLossesMwh * (benefits.recoveryRateTarget / 100) * (benefits.currentTariff - benefits.energyWholesaleCost)) * progress;
-      addRow(year, 'BENEFICIOS', 'Recuperación de Fraude', 'Pérdidas_MWh * %Recuperación * (Tarifa - Costo_Energía) * Progreso_Despliegue', `${fmt(benefits.nonTechLossesMwh)} * ${fmt(benefits.recoveryRateTarget)}% * (${fmt(benefits.currentTariff)} - ${fmt(benefits.energyWholesaleCost)}) * ${fmt(progress * 100)}%`, fraudBenefit);
+      const fraudBenefit = (benefits.nonTechLossesGwh * (benefits.recoveryRateTarget / 100) * (benefits.currentTariff - benefits.energyWholesaleCost)) * progress;
+      addRow(year, 'BENEFICIOS', 'Recuperación de Fraude', 'Pérdidas_GWh * %Recuperación * (Tarifa - Costo_Energía) * Progreso_Despliegue', `${fmt(benefits.nonTechLossesGwh)} * ${fmt(benefits.recoveryRateTarget)}% * (${fmt(benefits.currentTariff)} - ${fmt(benefits.energyWholesaleCost)}) * ${fmt(progress * 100)}%`, fraudBenefit);
     }
   }
 
-  // --- CABECERAS PARA BOM ---
-  const bomBytes = new Uint8Array([0xEF, 0xBB, 0xBF]); // UTF-8 BOM
   return '\uFEFF' + rows.map(r => r.join(',')).join('\n');
 }

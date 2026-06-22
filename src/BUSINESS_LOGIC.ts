@@ -245,14 +245,14 @@ export function calculateBenefitsForYear(scenario: Scenario, year: number): numb
   const dispatchSavings  = (benefits.annualCutsVolume + benefits.annualReposVolume)
                            * benefits.dispatchCost * progress;
 
-  // Palanca 2: Reducción multas SAIDI + estimaciones
-  const saidiHoursSaved  = benefits.saidiHistoricalHours * (benefits.saidiTargetReduction / 100) * progress;
-  const saidiBenefit     = saidiHoursSaved * benefits.finePerHour;
+  // Palanca 2: Reducción multas SAIDI (en minutos) + estimaciones
+  const saidiMinutesSaved = benefits.saidiHistoricalMinutes * (benefits.saidiTargetReduction / 100) * progress;
+  const saidiBenefit     = saidiMinutesSaved * benefits.finePerMinute;
   const estFinesBenefit  = benefits.estFinesAnnual * progress;
 
-  // Palanca 2b: Multas de Calidad de Producto (Aparcamiento + Incumplimiento)
+  // Palanca 2b: Multas de Calidad de Producto (Apartamiento + Incumplimiento)
   const qualityFinesBenefit =
-    (benefits.parkingFineAnnual * ((benefits.parkingFineImprovement ?? 0) / 100) +
+    (benefits.apartamientoFineAnnual * ((benefits.apartamientoFineImprovement ?? 0) / 100) +
      benefits.nonComplianceFineAnnual * ((benefits.nonComplianceFineImprovement ?? 0) / 100)) *
     progress;
 
@@ -261,10 +261,10 @@ export function calculateBenefitsForYear(scenario: Scenario, year: number): numb
   const callCenterSavings = ((benefits.inboundCallVolume ?? 0) * (benefits.callCenterUnitCost ?? 0)) * progress;
   const deviceDamageSavings = ((benefits.deviceDamageClaims ?? 0) * ((benefits.deviceDamageAvoidance ?? 0) / 100)) * progress;
 
-  // Palanca 3: Recuperación pérdidas no técnicas
-  const mwhRecovered     = benefits.nonTechLossesMwh * (benefits.recoveryRateTarget / 100) * progress;
-  const revenuePerMwh    = benefits.currentTariff - benefits.energyWholesaleCost;
-  const fraudBenefit     = mwhRecovered * Math.max(0, revenuePerMwh);
+  // Palanca 3: Recuperación pérdidas no técnicas (en GWh)
+  const gwhRecovered     = benefits.nonTechLossesGwh * (benefits.recoveryRateTarget / 100) * progress;
+  const revenuePerGwh    = benefits.currentTariff - benefits.energyWholesaleCost;
+  const fraudBenefit     = gwhRecovered * Math.max(0, revenuePerGwh);
 
   return productivitySavings + readingSavings + dispatchSavings + saidiBenefit + estFinesBenefit + qualityFinesBenefit + claimsSavings + callCenterSavings + deviceDamageSavings + fraudBenefit;
 }

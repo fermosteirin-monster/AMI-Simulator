@@ -1,6 +1,6 @@
 // App.tsx — Premium shell con Framer Motion, modo light/dark, animaciones fluidas
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import LoginScreen from './components/LoginScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -16,8 +16,8 @@ import SensitivityChart from './components/SensitivityChart';
 import ScenarioCompare from './components/ScenarioCompare';
 import MultiScenarioChart from './components/MultiScenarioChart';
 import { PRESETS } from './lib/presets';
-import { generateProjection } from './BUSINESS_LOGIC';
 import { generateDetailedCSV } from './lib/exportUtils';
+import MtSensorView from './components/mt/MtSensorView';
 
 type DashTab = 'overview' | 'projection' | 'sensitivity' | 'compare';
 
@@ -28,25 +28,7 @@ const DASH_TABS: { key: DashTab; label: string; icon: React.ReactNode }[] = [
   { key: 'compare',     label: 'Comparativa',  icon: <GitCompare className="w-3.5 h-3.5" /> },
 ];
 
-// ── Export helpers ─────────────────────────────────────────────────────────
-function downloadJSON(data: unknown, filename: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
 
-function downloadCSV(rows: string[][], filename: string) {
-  const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
 
 // ── Scenario color palette ─────────────────────────────────────────────────
 const SCENARIO_COLORS = ['#6366f1','#10b981','#f59e0b','#f43f5e','#8b5cf6','#06b6d4'];
@@ -62,6 +44,8 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState<boolean>(
     () => sessionStorage.getItem('ami_authenticated') === 'true'
   );
+  
+  const [activeModule, setActiveModule]     = useState<'AMI' | 'MT'>('AMI');
 
   const [cloneName, setCloneName]           = useState('');
   const [showCloneInput, setShowCloneInput] = useState(false);
@@ -128,28 +112,7 @@ export default function App() {
     }, 100);
   };
 
-  const handleExportJSON = useCallback(() => {
-    if (!activeScenario) return;
-    downloadJSON(activeScenario, `${activeScenario.name.replace(/\s+/g,'_')}.json`);
-    setShowExportMenu(false);
-  }, [activeScenario]);
 
-  const handleExportCSV = useCallback(() => {
-    if (!activeScenario) return;
-    const proj = generateProjection(activeScenario);
-    const header = ['Año','CAPEX (USD)','OPEX (USD)','Beneficios (USD)','Flujo Neto (USD)','VPN Acumulado (USD)'];
-    const rows = proj.map((p) => [
-      String(p.year), p.capex.toFixed(2), p.opex.toFixed(2),
-      p.benefits.toFixed(2), p.netCashFlow.toFixed(2), p.cumulativeNPV.toFixed(2),
-    ]);
-    downloadCSV([header, ...rows], `${activeScenario.name.replace(/\s+/g,'_')}_proyeccion.csv`);
-    setShowExportMenu(false);
-  }, [activeScenario]);
-
-  const handleExportAllJSON = useCallback(() => {
-    downloadJSON({ scenarios, exportedAt: new Date().toISOString() }, 'ami_simulator_todos_escenarios.json');
-    setShowExportMenu(false);
-  }, [scenarios]);
 
   const isDark = theme === 'dark';
 
@@ -162,7 +125,8 @@ export default function App() {
       className="flex h-screen overflow-hidden font-sans mesh-bg"
       style={{ color: 'var(--text-primary)' }}
     >
-      {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
+      {/* ── SIDEBAR (Solo AMI) ────────────────────────────────────────── */}
+      {activeModule === 'AMI' && (
       <motion.aside
         animate={{ width: sidebarOpen ? 256 : 56 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
@@ -327,6 +291,7 @@ export default function App() {
           </div>
         )}
       </motion.aside>
+      )}
 
       {/* ── MAIN ────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -339,16 +304,35 @@ export default function App() {
             backdropFilter: 'blur(12px)',
           }}>
           <div>
-            <h1 className="text-base font-bold text-gradient leading-none">
-              {activeScenario?.name ?? 'Sin escenario'}
-            </h1>
-            <p className="text-xs mt-0.5 max-w-lg truncate" style={{ color: 'var(--text-muted)' }}>
-              {activeScenario?.description}
+            <div className="flex items-center gap-2 mb-0.5">
+              <h1 className="text-base font-bold text-gradient leading-none">
+                {activeModule === 'AMI' ? (activeScenario?.name ?? 'Sin escenario') : 'Sensorización de MT'}
+              </h1>
+            </div>
+            <p className="text-xs max-w-lg truncate" style={{ color: 'var(--text-muted)' }}>
+              {activeModule === 'AMI' ? activeScenario?.description : 'Módulo Independiente de Evaluación y Análisis Financiero'}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Meta pills */}
+            {/* Module Switcher */}
+            <div className="glass flex items-center p-0.5 rounded-lg border border-white/5 mr-2">
+              <button
+                onClick={() => setActiveModule('AMI')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeModule === 'AMI' ? 'bg-brand-500 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              >
+                AMI
+              </button>
+              <button
+                onClick={() => setActiveModule('MT')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeModule === 'MT' ? 'bg-brand-500 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              >
+                MT Sensors
+              </button>
+            </div>
+            
+            {/* Meta pills (Solo AMI) */}
+            {activeModule === 'AMI' && (
             <div className="flex items-center gap-2">
               {[
                 { label: 'Horizonte', value: `${activeScenario?.global.analysisHorizonYears ?? 8}a` },
@@ -364,7 +348,8 @@ export default function App() {
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-glow" />
                 <span className="text-xs font-medium text-emerald-400">Live</span>
               </div>
-            </div>
+              </div>
+            )}
 
             {/* Theme toggle */}
             <button
@@ -419,12 +404,17 @@ export default function App() {
           </div>
         </header>
 
-        {/* Tabs */}
-        <div className="px-5 flex items-center gap-0.5 flex-shrink-0 border-b"
-          style={{
-            background: isDark ? 'rgba(15,15,46,0.5)' : 'rgba(255,255,255,0.5)',
-            borderColor: 'var(--border-subtle)',
-          }}>
+        {/* ── CONTENIDO ─────────────────────────────────────────────────── */}
+        {activeModule === 'MT' ? (
+          <MtSensorView />
+        ) : (
+          <>
+            {/* Tabs (Solo AMI) */}
+            <div className="px-5 flex items-center gap-0.5 flex-shrink-0 border-b"
+              style={{
+                background: isDark ? 'rgba(15,15,46,0.5)' : 'rgba(255,255,255,0.5)',
+                borderColor: 'var(--border-subtle)',
+              }}>
           {DASH_TABS.map((t) => (
             <button key={t.key} id={`dash-tab-${t.key}`} onClick={() => setDashTab(t.key)}
               className={`dash-tab relative ${dashTab === t.key ? 'dash-tab-active' : ''}`}>
@@ -530,7 +520,9 @@ export default function App() {
             </AnimatePresence>
           </div>
         </div>
-      </div>
-    </div>
+      </>
+    )}
+  </div>
+</div>
   );
 }

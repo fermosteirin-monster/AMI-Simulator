@@ -1,5 +1,6 @@
 // store/useStore.ts – Estado global del simulador AMI
 // Zustand + persist middleware (localStorage key: ami-simulator-v12)
+// Zustand + persist middleware (localStorage key: ami-simulator-v15)
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -13,11 +14,11 @@ export const BASELINE_SCENARIO: Scenario = {
   description: 'Escenario de referencia con supuestos Edesur. Mix tecnológico Wi-Sun/PLC. Curva de despliegue lineal.',
   isBaseline: true,
   global: {
-    wacc:                 14.23,
-    analysisHorizonYears: 10,
+    wacc:                 14.2,
+    analysisHorizonYears: 12,
     totalEndpoints:       2_700_000,
-    wiSunPct:             30,
-    plcPct:               65,
+    wiSunPct:             20,
+    plcPct:               75,
     t2t3Pct:              2,
     deploymentCurve:      'linear',
   },
@@ -27,7 +28,7 @@ export const BASELINE_SCENARIO: Scenario = {
     // Módulos de comunicación por tecnología
     commsCostWiSun:       15,
     commsCostPLC:         15,
-    commsCostP2P:         55,
+    commsCostP2P:         15,
     installCost:          35,
     logisticsCostPerEndpoint: 5,
     // Infraestructura
@@ -55,8 +56,8 @@ export const BASELINE_SCENARIO: Scenario = {
     // Operacionales
     manualReadsVolume:         32_400_000,
     manualReadUnitCost:        0.25,
-    annualCutsVolume:          335_000,
-    annualReposVolume:         160_000,
+    annualCutsVolume:          318_250,
+    annualReposVolume:         152_000,
     dispatchCost:              14.6,
     guardDispatchCost:         20,
     // Productividad — visitas evitadas al 100% del despliegue
@@ -70,18 +71,18 @@ export const BASELINE_SCENARIO: Scenario = {
     callCenterUnitCost:        1.2,
     deviceDamageClaims:        500_000,
     deviceDamageAvoidance:     30,
-    // Agregados
-    saidiHistoricalHours:      350,
-    saidiTargetReduction:      10,
-    finePerHour:               110_000,
+    // Regulatorio — SAIDI (en minutos)
+    saidiHistoricalMinutes:    350,
+    saidiTargetReduction:      25,
+    finePerMinute:             50_000,
     estFinesAnnual:            2_420_000,
     // Multas de Calidad de Producto
-    parkingFineAnnual:         5_250_000,
-    parkingFineImprovement:    20,
-    nonComplianceFineAnnual:   1_000_000,
+    apartamientoFineAnnual:       5_250_000,
+    apartamientoFineImprovement:  20,
+    nonComplianceFineAnnual:      700_000,
     nonComplianceFineImprovement: 70,
-    // Fraude
-    nonTechLossesMwh:          2394,
+    // Fraude — pérdidas no técnicas (en GWh)
+    nonTechLossesGwh:          2_394,
     recoveryRateTarget:        20,
     energyWholesaleCost:       40_000,
     currentTariff:             97_200,
@@ -89,7 +90,7 @@ export const BASELINE_SCENARIO: Scenario = {
   regulatory: {
     waccEnrePhase1:            9.99,
     waccEnrePhase2:            9.99,
-    recognizedMeterCapexPhase1:126,
+    recognizedMeterCapexPhase1:151,
     meterRegulatoryLife:       25,
     itRegulatoryLife:          10,
     enreItSubsidy:             5_000_000,
@@ -188,8 +189,8 @@ export const useStore = create<AMIStore>()(
         })),
     }),
     {
-      name: 'ami-simulator-v12',
-      version: 12,
+      name: 'ami-simulator-v15',
+      version: 15,
     }
   )
 );
