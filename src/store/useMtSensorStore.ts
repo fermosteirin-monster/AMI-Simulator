@@ -3,20 +3,20 @@ import { persist } from 'zustand/middleware';
 import { MtSensorParams } from '../MT_DATA_MODEL';
 
 export const DEFAULT_MT_PARAMS: MtSensorParams = {
-  totalTransformers: 15000,
-  deploymentHorizon: 3,
+  totalTransformers: 10000,
+  deploymentHorizon: 5,
   projectHorizon: 10,
   
-  sensorUnitCost: 200,
+  sensorUnitCost: 1500,
   p2pConnectionCost: 50,
   installationCost: 100,
   
   annualFailureRate: 2.5,
-  preventiveReduction: 40,
+  preventiveReduction: 50,
   transformerReplacementCost: 6000,
   
-  saidiMtHistorical: 120,
-  saidiMtReduction: 15,
+  saidiMtHistorical: 300,
+  saidiMtReduction: 20,
   finePerMinute: 50000,
   
   wacc: 14.2
@@ -45,8 +45,8 @@ export const useMtSensorStore = create<MtSensorStore>()(
         })),
     }),
     {
-      name: 'mt-sensor-simulator-v1',
-      version: 1,
+      name: 'mt-sensor-simulator-v2',
+      version: 2,
     }
   )
 );
