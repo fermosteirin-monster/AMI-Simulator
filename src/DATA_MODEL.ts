@@ -40,7 +40,7 @@ export interface CapexParams {
 export interface OpexParams {
   telecomMonthly: number;      // Solo medidores P2P (SIM M2M)
   saasAnnual: number;
-  cloudMonthly: number;
+  cloudAnnualPerNode: number;
   maintenanceAnnual: number;
   adminAnnual: number;
   pmCost: number;              // Project Management: se distribuye en partes iguales por cada año de despliegue
@@ -59,12 +59,15 @@ export interface BenefitParams {
   reiterativeVisitsAvoided: number;   // Visitas reiteradas (~15% tasa actual)
   qualityVisitsAvoided: number;       // Visitas calidad de producto (oscilaciones/BT)
   // ── Comercial / Call Center ────────────────────────────────────────────────
+  // Comerciales y back-office
   billingClaimsVolume: number;
-  backOfficeTxCost: number;
-  inboundCallVolume: number;
-  callCenterUnitCost: number;
-  deviceDamageClaims: number;
-  deviceDamageAvoidance: number;
+  backOfficeTxCost?: number;         // Costo por transacción/reclamo comercial evitado (USD)
+  inboundCallVolume?: number;        // Llamadas recibidas al año
+  callCenterUnitCost?: number;       // Costo por llamada (USD)
+  deviceDamageClaims?: number;       // Reclamos anuales por electrodomésticos quemados (USD)
+  deviceDamageAvoidance?: number;    // % de reclamos evitados por mejor control de tensión
+  cosFiPenaltyPct?: number;          // % de clientes a los que se les detecta y cobra multa por CosFi
+  cosFiPenaltyValue?: number;        // Monto de multa anual promedio por cliente detectado (USD)
   // ── Agregados / Agrupados ──────────────────────────────────────────────────
   saidiHistoricalMinutes: number;  // minutos de interrupción SAIDI histórico anual
   saidiTargetReduction: number;

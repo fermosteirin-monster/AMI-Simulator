@@ -1,9 +1,12 @@
 import { Scenario } from '../DATA_MODEL';
-import { getDeploymentSchedule, getCumulativeDeployed, deriveP2pPct } from '../BUSINESS_LOGIC';
+import { MtSensorParams } from '../MT_DATA_MODEL';
+import { getDeploymentSchedule, getCumulativeDeployed, deriveP2pPct, generateProjection } from '../BUSINESS_LOGIC';
+import { generateMtProjection } from '../MT_BUSINESS_LOGIC';
 
-const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).replace(/,/g, '');
+const escapeCSV = (val: any) => `"${String(val).replace(/"/g, '""')}"`;
+const fmt = (num: number) => num.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
-export function generateDetailedCSV(scenario: Scenario): string {
+export function generateDetailedCSV(scenario: Scenario, mtParams: MtSensorParams): string {
   const { global, capex, opex, benefits } = scenario;
   const horizon = global.analysisHorizonYears;
   const deployHorizon = global.deploymentHorizonYears ?? 10;
@@ -70,7 +73,7 @@ export function generateDetailedCSV(scenario: Scenario): string {
       addRow(year, 'OPEX', 'Telecomunicaciones M2M (P2P)', 'Medidores_P2P_Acumulados * Costo_Mensual * 12', `${fmt(p2pMetersCumulative)} * ${fmt(opex.telecomMonthly)} * 12`, telecomCost);
       addRow(year, 'OPEX', 'SaaS', 'SaaS_Anual * (Año_Actual / Horizonte)', `${fmt(opex.saasAnnual)} * (${year} / ${horizon})`, opex.saasAnnual * (year / horizon));
       addRow(year, 'OPEX', 'Mantenimiento de Red', 'Mantenimiento_Anual * Progreso_Despliegue', `${fmt(opex.maintenanceAnnual)} * ${fmt(progress * 100)}%`, opex.maintenanceAnnual * progress);
-      addRow(year, 'OPEX', 'Infraestructura Cloud', 'Cloud_Mensual * 12 * Progreso_Despliegue', `${fmt(opex.cloudMonthly)} * 12 * ${fmt(progress * 100)}%`, opex.cloudMonthly * 12 * progress);
+      addRow(year, 'OPEX', 'Infraestructura Cloud', 'Nodos_Instalados * Cloud_Anual_Por_Nodo', `${fmt(cumMeters)} * ${fmt(opex.cloudAnnualPerNode)}`, cumMeters * opex.cloudAnnualPerNode);
       addRow(year, 'OPEX', 'Administración y Gestión', 'Admin_Anual * Progreso_Despliegue', `${fmt(opex.adminAnnual)} * ${fmt(progress * 100)}%`, opex.adminAnnual * progress);
     }
 
@@ -100,7 +103,68 @@ export function generateDetailedCSV(scenario: Scenario): string {
 
       const fraudBenefit = (benefits.nonTechLossesGwh * (benefits.recoveryRateTarget / 100) * (benefits.currentTariff - benefits.energyWholesaleCost)) * progress;
       addRow(year, 'BENEFICIOS', 'Recuperación de Fraude', 'Pérdidas_GWh * %Recuperación * (Tarifa - Costo_Energía) * Progreso_Despliegue', `${fmt(benefits.nonTechLossesGwh)} * ${fmt(benefits.recoveryRateTarget)}% * (${fmt(benefits.currentTariff)} - ${fmt(benefits.energyWholesaleCost)}) * ${fmt(progress * 100)}%`, fraudBenefit);
+
+      const claimsSavings = (benefits.backOfficeTxCost ?? 0) * progress;
+      addRow(year, 'BENEFICIOS', 'Back-Office Comercial', 'Costo_Tx_BackOffice * Progreso_Despliegue', `${fmt(benefits.backOfficeTxCost ?? 0)} * ${fmt(progress * 100)}%`, claimsSavings);
+
+      const callCenterSavings = ((benefits.inboundCallVolume ?? 0) * (benefits.callCenterUnitCost ?? 0)) * progress;
+      addRow(year, 'BENEFICIOS', 'Call Center Inbound', 'Volumen_Llamadas * Costo_Unitario * Progreso_Despliegue', `${fmt(benefits.inboundCallVolume ?? 0)} * ${fmt(benefits.callCenterUnitCost ?? 0)} * ${fmt(progress * 100)}%`, callCenterSavings);
+
+      const deviceDamageSavings = ((benefits.deviceDamageClaims ?? 0) * ((benefits.deviceDamageAvoidance ?? 0) / 100)) * progress;
+      addRow(year, 'BENEFICIOS', 'Reclamos por Daño de Equipos', 'Costo_Reclamos * %Mejora * Progreso_Despliegue', `${fmt(benefits.deviceDamageClaims ?? 0)} * ${fmt(benefits.deviceDamageAvoidance ?? 0)}% * ${fmt(progress * 100)}%`, deviceDamageSavings);
+
+      const cosFiSavings = (cumMeters * ((benefits.cosFiPenaltyPct ?? 0) / 100)) * (benefits.cosFiPenaltyValue ?? 0);
+      addRow(year, 'BENEFICIOS', 'Multas Factor de Potencia (CosFi)', 'Nodos_Instalados * %Infractores * Multa_Promedio', `${fmt(cumMeters)} * ${fmt(benefits.cosFiPenaltyPct ?? 0)}% * ${fmt(benefits.cosFiPenaltyValue ?? 0)}`, cosFiSavings);
     }
+  }
+
+  // --- MT SENSORS SECTION ---
+  rows.push([]);
+  rows.push(['--- MT SENSORS ---']);
+  rows.push(['Año', 'Tipo', 'Concepto', 'Fórmula Teórica', 'Fórmula con Valores', 'Resultado (USD)']);
+  
+  const { projection: mtProjection } = generateMtProjection(mtParams);
+  const mtRows: string[][] = [];
+  const addMtRow = (year: number, type: string, concept: string, formulaT: string, formulaV: string, result: number) => {
+    mtRows.push([year.toString(), type, concept, escapeCSV(formulaT), escapeCSV(formulaV), Math.round(result).toString()]);
+  };
+
+  for (let year = 0; year <= mtParams.projectHorizon; year++) {
+    const p = mtProjection.find(mp => mp.year === year);
+    if (!p) continue;
+    
+    if (year <= mtParams.deploymentHorizon) {
+      addMtRow(year, 'CAPEX', 'Inversión en Sensores MT', 'Trafos_del_año * (Sensor + Inst + P2P)', `Trafos * (${fmt(mtParams.sensorUnitCost)} + ${fmt(mtParams.installationCost)} + ${fmt(mtParams.p2pConnectionCost)})`, p.capex);
+    }
+    if (year > 0) {
+      addMtRow(year, 'BENEFICIOS', 'Ahorro Mantenimiento (Trafos Salvados)', 'Trafos_Acumulados * Tasa_Falla * %Salvados * Costo_Recambio', `${fmt(p.accumulatedTransformers)} * ${fmt(mtParams.annualFailureRate)}% * ${fmt(mtParams.preventiveReduction)}% * ${fmt(mtParams.transformerReplacementCost)}`, p.maintenanceSavings);
+      addMtRow(year, 'BENEFICIOS', 'Ahorro Multas SAIDI MT', 'Avance * Minutos_Historicos * %Reduccion * Valor_Minuto', `${fmt(p.progress * 100)}% * ${fmt(mtParams.saidiMtHistorical)} * ${fmt(mtParams.saidiMtReduction)}% * ${fmt(mtParams.finePerMinute)}`, p.saidiSavings);
+    }
+    
+    addMtRow(year, 'IMPUESTOS', 'Base Imponible MT', 'Ahorros - Depreciacion', `${fmt(p.maintenanceSavings + p.saidiSavings)} - ${fmt(p.accountingDepreciation)}`, p.taxableBase);
+    addMtRow(year, 'IMPUESTOS', 'Impuesto a las Ganancias MT', 'Base_Imponible_Año_Anterior * 35%', `Base_Anterior * 35%`, p.incomeTax);
+    addMtRow(year, 'FLUJO', 'Flujo Neto MT', '-CAPEX + Ahorros - Impuestos', `-${fmt(p.capex)} + ${fmt(p.maintenanceSavings + p.saidiSavings)} - ${fmt(p.incomeTax)}`, p.netCashFlow);
+  }
+
+  rows.push(...mtRows);
+
+  // --- COMBINADA SECTION ---
+  rows.push([]);
+  rows.push(['--- COMBINADA (AMI + MT) ---']);
+  rows.push(['Año', 'CAPEX Total', 'Beneficios Totales', 'Flujo Neto Combinado']);
+  
+  const amiProjection = generateProjection(scenario);
+  const maxHorizon = Math.max(scenario.global.analysisHorizonYears, mtParams.projectHorizon);
+  
+  for (let year = 0; year <= maxHorizon; year++) {
+    const ami = amiProjection.find(a => a.year === year);
+    const mt = mtProjection.find(m => m.year === year);
+    
+    const capex = (ami?.capex.total || 0) + (mt?.capex || 0);
+    const benefits = (ami?.benefits.total || 0) + (mt?.maintenanceSavings || 0) + (mt?.saidiSavings || 0);
+    const fcf = (ami?.netCashFlow || 0) + (mt?.netCashFlow || 0);
+    
+    rows.push([year.toString(), Math.round(capex).toString(), Math.round(benefits).toString(), Math.round(fcf).toString()]);
   }
 
   return '\uFEFF' + rows.map(r => r.join(',')).join('\n');

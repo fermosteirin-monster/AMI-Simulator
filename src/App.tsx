@@ -9,6 +9,7 @@ import {
   Sparkles, Download, Sun, Moon,
 } from 'lucide-react';
 import { useStore, selectActiveScenario } from './store/useStore';
+import { useMtSensorStore } from './store/useMtSensorStore';
 import KpiDashboard from './components/KpiDashboard';
 import ParamPanel from './components/ParamPanel';
 import { NetCashFlowChart, CapexVsBenefitsChart, BenefitsBreakdownChart, InstallationsChart } from './components/ProjectionChart';
@@ -42,6 +43,7 @@ export default function App() {
     setActiveScenario, cloneScenario, deleteScenario, resetScenarioToBaseline,
   } = useStore();
   const activeScenario = useStore(selectActiveScenario);
+  const mtParamsRaw = useMtSensorStore(s => s.params);
 
   const [authenticated, setAuthenticated] = useState<boolean>(
     () => sessionStorage.getItem('ami_authenticated') === 'true'
@@ -97,7 +99,10 @@ export default function App() {
 
   const handleExportDetailedCSV = () => {
     if (!activeScenario) return;
-    const csvStr = generateDetailedCSV(activeScenario);
+    const wacc = activeScenario.global.wacc;
+    const projectHorizon = activeScenario.global.analysisHorizonYears;
+    const mtParams = { ...mtParamsRaw, wacc, projectHorizon };
+    const csvStr = generateDetailedCSV(activeScenario, mtParams);
     const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -110,7 +115,10 @@ export default function App() {
   const handleExportExcel = async () => {
     if (!activeScenario) return;
     try {
-      await exportFlujoFondosExcel(activeScenario);
+      const wacc = activeScenario.global.wacc;
+      const projectHorizon = activeScenario.global.analysisHorizonYears;
+      const mtParams = { ...mtParamsRaw, wacc, projectHorizon };
+      await exportFlujoFondosExcel(activeScenario, mtParams);
     } catch (err) {
       console.error('Error exportando Excel:', err);
       alert('Hubo un error al generar el Excel. Revisa la consola.');
@@ -324,11 +332,7 @@ export default function App() {
                   : 'Vista Combinada — AMI + MT'}
               </h1>
             </div>
-            <p className="text-xs max-w-lg truncate" style={{ color: 'var(--text-muted)' }}>
-              {activeModule === 'AMI' ? activeScenario?.description
-                : activeModule === 'MT' ? 'Módulo Independiente de Evaluación y Análisis Financiero'
-                : 'Resumen financiero consolidado de AMI y Sensorización MT'}
-            </p>
+
           </div>
 
           <div className="flex items-center gap-3">

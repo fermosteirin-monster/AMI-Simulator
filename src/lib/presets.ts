@@ -68,7 +68,7 @@ export const PRESETS: Preset[] = [
         ...BASELINE_SCENARIO.opex,
         pmCost:            2_000_000,
         telecomMonthly:    0.52,
-        cloudMonthly:      0,          // Sin costo cloud
+        cloudAnnualPerNode: 0,          // Sin costo cloud
         maintenanceAnnual: 500_000,
         saasAnnual:        200_000,
         adminAnnual:       500_000,

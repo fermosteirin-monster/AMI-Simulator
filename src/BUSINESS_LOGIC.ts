@@ -224,7 +224,7 @@ export function calculateOpexForYear(scenario: Scenario, year: number): number {
   const p2pActiveMeters = activeMeters * (p2pPct / 100);
 
   const telecomAnnual = p2pActiveMeters * opex.telecomMonthly * 12;
-  const cloudAnnual   = opex.cloudMonthly * 12;
+  const cloudAnnual   = activeMeters * opex.cloudAnnualPerNode;
 
   return pmThisYear + telecomAnnual + cloudAnnual + opex.maintenanceAnnual + opex.saasAnnual + opex.adminAnnual;
 }
@@ -274,13 +274,14 @@ export function calculateBenefitsForYear(scenario: Scenario, year: number): numb
   const claimsSavings = (benefits.backOfficeTxCost ?? 0) * progress;
   const callCenterSavings = ((benefits.inboundCallVolume ?? 0) * (benefits.callCenterUnitCost ?? 0)) * progress;
   const deviceDamageSavings = ((benefits.deviceDamageClaims ?? 0) * ((benefits.deviceDamageAvoidance ?? 0) / 100)) * progress;
+  const cosFiBenefit = ((cumulative[year] ?? 0) * ((benefits.cosFiPenaltyPct ?? 0) / 100)) * (benefits.cosFiPenaltyValue ?? 0);
 
   // Palanca 3: Recuperación pérdidas no técnicas (en GWh)
   const gwhRecovered     = benefits.nonTechLossesGwh * (benefits.recoveryRateTarget / 100) * progress;
   const revenuePerGwh    = benefits.currentTariff - benefits.energyWholesaleCost;
   const fraudBenefit     = gwhRecovered * Math.max(0, revenuePerGwh);
 
-  return productivitySavings + readingSavings + dispatchSavings + saidiBenefit + estFinesBenefit + qualityFinesBenefit + claimsSavings + callCenterSavings + deviceDamageSavings + fraudBenefit;
+  return productivitySavings + readingSavings + dispatchSavings + saidiBenefit + estFinesBenefit + qualityFinesBenefit + claimsSavings + callCenterSavings + deviceDamageSavings + cosFiBenefit + fraudBenefit;
 }
 
 // ── INGRESOS VAD (ENRE) ───────────────────────────────────────────────────

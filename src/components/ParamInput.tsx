@@ -22,15 +22,28 @@ interface Props {
 function formatDisplay(v: number, fmt: Format): string {
   switch (fmt) {
     case 'currency': return new Intl.NumberFormat('es-AR').format(Math.round(v));
-    case 'percent':  return v.toFixed(1);
+    case 'percent':  return String(Number(v.toFixed(2)));
     case 'millions': return (v / 1_000_000).toFixed(2);
     case 'number':
-    default:         return v % 1 === 0 ? String(v) : v.toFixed(2);
+    default:         return String(Number(v.toFixed(2)));
   }
 }
 
 function parseInput(raw: string, fmt: Format): number {
-  const clean = raw.replace(/\./g, '').replace(',', '.');
+  let clean = raw.trim();
+  // Si tiene múltiples puntos (ej. 1.000.000) pero ninguna coma, o una coma, eliminamos los puntos de miles
+  if (clean.includes('.') && clean.includes(',')) {
+    // Caso 1.000,50 -> eliminar punto, cambiar coma a punto
+    clean = clean.replace(/\./g, '').replace(',', '.');
+  } else if (clean.includes(',') && !clean.includes('.')) {
+    // Caso 1000,50 -> cambiar coma a punto
+    clean = clean.replace(',', '.');
+  } else if (clean.split('.').length > 2) {
+    // Caso 1.000.000 sin decimales -> eliminar todos los puntos
+    clean = clean.replace(/\./g, '');
+  }
+  // Si solo tiene un punto y no tiene comas (ej. 0.44), se asume que el punto es decimal, no se toca.
+
   const n = parseFloat(clean);
   if (isNaN(n)) return 0;
   return fmt === 'millions' ? n * 1_000_000 : n;

@@ -49,7 +49,7 @@ export const BASELINE_SCENARIO: Scenario = {
   opex: {
     telecomMonthly:       0.52,
     saasAnnual:           200_000,
-    cloudMonthly:         5_000,
+    cloudAnnualPerNode:   0.44,
     maintenanceAnnual:    500_000,
     adminAnnual:          500_000,
     pmCost:               1_000_000,   // distribuido en partes iguales por año de despliegue
@@ -73,6 +73,8 @@ export const BASELINE_SCENARIO: Scenario = {
     callCenterUnitCost:        1.2,
     deviceDamageClaims:        500_000,
     deviceDamageAvoidance:     30,
+    cosFiPenaltyPct:           2,
+    cosFiPenaltyValue:         15,
     // Regulatorio — SAIDI (en minutos)
     saidiHistoricalMinutes:    350,
     saidiTargetReduction:      25,
@@ -201,8 +203,8 @@ export const useStore = create<AMIStore>()(
         })),
     }),
     {
-      name: 'ami-simulator-v17',
-      version: 17,
+      name: 'ami-simulator-v20',
+      version: 20,
     }
   )
 );

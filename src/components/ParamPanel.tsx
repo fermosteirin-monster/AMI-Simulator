@@ -283,8 +283,8 @@ export default function ParamPanel() {
                     </div>
                   </motion.div>
                   {([
-                    { id: 'waccEnrePhase1',             label: 'WACC ENRE Fase 1 (Años 1-4)', unit: '%', format: 'percent' as const, min: 0, val: reg.waccEnrePhase1, tooltip: 'Tasa fija aplicable a los medidores instalados hasta el año 4 inclusive.' },
-                    { id: 'waccEnrePhase2',             label: 'WACC ENRE Fase 2 (Año 5+)',   unit: '%', format: 'percent' as const, min: 0, val: reg.waccEnrePhase2, tooltip: 'Tasa aplicable a los medidores instalados a partir del año 5.' },
+                    { id: 'waccEnrePhase1',             label: 'WACC ENRE Fase 1 (Años 1-4)', unit: '%', format: 'percent' as const, min: 0, step: 0.01, val: reg.waccEnrePhase1, tooltip: 'Tasa fija aplicable a los medidores instalados hasta el año 4 inclusive.' },
+                    { id: 'waccEnrePhase2',             label: 'WACC ENRE Fase 2 (Año 5+)',   unit: '%', format: 'percent' as const, min: 0, step: 0.01, val: reg.waccEnrePhase2, tooltip: 'Tasa aplicable a los medidores instalados a partir del año 5.' },
                     { id: 'recognizedMeterCapexPhase1', label: 'CAPEX Reconocido Fase 1',     unit: 'USD', format: 'currency' as const, min: 0, val: reg.recognizedMeterCapexPhase1, tooltip: 'Monto fijo unitario por medidor ingresado a la RAB en la Fase 1.' },
                     { id: 'meterRegulatoryLife',        label: 'Vida Útil Medidores',         unit: 'años', format: 'number' as const, min: 1, val: reg.meterRegulatoryLife, tooltip: 'Años de amortización lineal de los medidores en la RAB.' },
                   ] as const).map((p) => (
@@ -394,8 +394,8 @@ export default function ParamPanel() {
               {([
                 { id: 'telecomMonthly',    label: 'Abono M2M por Medidor (P2P)', unit: 'USD/mes', format: 'number'   as const, min: 0, max: 10, step: 0.05,
                   tooltip: 'Costo mensual de SIM/conectividad. Solo aplica a medidores P2P/celular activos.', val: scenario.opex.telecomMonthly },
-                { id: 'cloudMonthly',      label: 'Almacenamiento Cloud',         unit: 'USD/mes', format: 'currency'  as const, min: 0,
-                  tooltip: 'Costo mensual de cloud computing y almacenamiento de telemetría.', val: scenario.opex.cloudMonthly },
+                { id: 'cloudAnnualPerNode',      label: 'Almacenamiento Cloud (por Nodo)',         unit: 'USD/año', format: 'number'  as const, min: 0, step: 0.01,
+                  tooltip: 'Costo anual de cloud computing y almacenamiento de telemetría por medidor instalado.', val: scenario.opex.cloudAnnualPerNode },
                 { id: 'maintenanceAnnual', label: 'Mantenimiento en Campo',       unit: 'M USD/año', format: 'millions' as const, min: 0,
                   tooltip: 'Reposición de medidores defectuosos, mantenimiento de concentradores.', val: scenario.opex.maintenanceAnnual },
               ] as const).map((p) => (
@@ -498,8 +498,12 @@ export default function ParamPanel() {
                   tooltip: 'Costo de outsourcing Call Center por llamada.', val: scenario.benefits.callCenterUnitCost ?? 0 },
                 { id: 'deviceDamageClaims', label: 'Resarcimiento Artefactos', unit: 'USD/año', format: 'currency' as const, min: 0,
                   tooltip: 'Gasto histórico en indemnizaciones por daños de artefactos de clientes.', val: scenario.benefits.deviceDamageClaims ?? 0 },
-                { id: 'deviceDamageAvoidance', label: 'Mejora Resarcimientos', unit: '%', format: 'percent' as const, min: 0, max: 100,
+                { id: 'deviceDamageAvoidance', label: 'Mejora Resarcimientos', unit: '%', format: 'percent' as const, min: 0, max: 100, step: 1,
                   tooltip: 'Porcentaje de reclamos improcedentes evitables mediante telemetría.', val: scenario.benefits.deviceDamageAvoidance ?? 0 },
+                { id: 'cosFiPenaltyPct', label: 'Detección Infractores CosFi', unit: '%', format: 'percent' as const, min: 0, max: 100, step: 0.1,
+                  tooltip: 'Porcentaje del parque instalado al que se le detecta y factura penalidad por mal factor de potencia (CosFi).', val: scenario.benefits.cosFiPenaltyPct ?? 0 },
+                { id: 'cosFiPenaltyValue', label: 'Multa Promedio CosFi', unit: 'USD/año', format: 'currency' as const, min: 0,
+                  tooltip: 'Monto promedio anual facturado por cada cliente infractor detectado.', val: scenario.benefits.cosFiPenaltyValue ?? 0 },
               ] as const).map((p) => (
                 <motion.div key={p.id} variants={itemVariants}>
                   <ParamInput {...p} value={p.val} onChange={(v) => upd('benefits_op', p.id, v)} />
