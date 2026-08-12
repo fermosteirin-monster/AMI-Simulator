@@ -28,35 +28,39 @@ export function deriveP2pPct(wiSunPct: number, plcPct: number): number {
  * Las curvas son estrictamente controladas para que su suma sea exacta.
  */
 export function getDeploymentSchedule(scenario: Scenario): number[] {
-  const { totalEndpoints, analysisHorizonYears, deploymentCurve } = scenario.global;
-  const horizon = analysisHorizonYears;
-  const schedule = new Array(horizon + 1).fill(0);
+  const { totalEndpoints, deploymentHorizonYears, analysisHorizonYears, deploymentCurve } = scenario.global;
+  const deployHorizon  = deploymentHorizonYears;
+  const analysisHorizon = analysisHorizonYears;
 
-  if (totalEndpoints <= 0 || horizon <= 0) return schedule;
+  // El array siempre tiene tamaño (analysisHorizon + 1); las instalaciones
+  // ocurren solo en los primeros deployHorizon años. El resto queda en 0.
+  const schedule = new Array(analysisHorizon + 1).fill(0);
+
+  if (totalEndpoints <= 0 || deployHorizon <= 0) return schedule;
 
   const INITIAL_RAMP = 100_000;
   // Para garantizar curvas monotónicamente crecientes sin dar negativo, year1 no puede exceder el promedio anual
-  const year1 = Math.min(INITIAL_RAMP, totalEndpoints / horizon);
+  const year1 = Math.min(INITIAL_RAMP, totalEndpoints / deployHorizon);
   schedule[1] = year1;
 
   const remaining = totalEndpoints - year1;
-  const remainingYears = horizon - 1; // años 2..N
+  const remainingYears = deployHorizon - 1; // años 2..deployHorizon
 
   if (remaining <= 0 || remainingYears <= 0) return schedule;
 
   switch (deploymentCurve) {
     case 'linear': {
       const perYear = remaining / remainingYears;
-      for (let y = 2; y <= horizon; y++) schedule[y] = perYear;
+      for (let y = 2; y <= deployHorizon; y++) schedule[y] = perYear;
       break;
     }
 
     case 'bell': {
-      // Base lineal de Y1 a Y_N
+      // Base lineal de Y1 a Y_deployHorizon
       const Y_N = Math.min(200_000, remaining / remainingYears);
       let sumBase = 0;
-      const baseLine = new Array(horizon + 1).fill(0);
-      for (let y = 2; y <= horizon; y++) {
+      const baseLine = new Array(deployHorizon + 1).fill(0);
+      for (let y = 2; y <= deployHorizon; y++) {
         const progress = (y - 1) / remainingYears;
         baseLine[y] = year1 + progress * (Y_N - year1);
         sumBase += baseLine[y];
@@ -64,9 +68,9 @@ export function getDeploymentSchedule(scenario: Scenario): number[] {
 
       // Onda seno (campana) sobre la base
       let sumSine = 0;
-      const sines = new Array(horizon + 1).fill(0);
-      for (let y = 2; y < horizon; y++) {
-        // En y=1 y y=horizon el seno debe ser 0.
+      const sines = new Array(deployHorizon + 1).fill(0);
+      for (let y = 2; y < deployHorizon; y++) {
+        // En y=1 y y=deployHorizon el seno debe ser 0.
         const angle = Math.PI * (y - 1) / remainingYears;
         sines[y] = Math.sin(angle);
         sumSine += sines[y];
@@ -75,7 +79,7 @@ export function getDeploymentSchedule(scenario: Scenario): number[] {
       const extraNeeded = remaining - sumBase;
       const amplitude = sumSine > 0 ? extraNeeded / sumSine : 0;
 
-      for (let y = 2; y <= horizon; y++) {
+      for (let y = 2; y <= deployHorizon; y++) {
         schedule[y] = Math.max(0, baseLine[y] + sines[y] * amplitude);
       }
       break;
@@ -86,27 +90,27 @@ export function getDeploymentSchedule(scenario: Scenario): number[] {
       const Y_N = Math.min(200_000, remaining / remainingYears);
       
       let sumBase = 0;
-      const baseLine = new Array(horizon + 1).fill(0);
-      for (let y = 2; y <= horizon; y++) {
+      const baseLine = new Array(deployHorizon + 1).fill(0);
+      for (let y = 2; y <= deployHorizon; y++) {
         const progress = (y - 1) / remainingYears;
         baseLine[y] = year1 + progress * (Y_N - year1);
         sumBase += baseLine[y];
       }
       
-      const pShape = new Array(horizon + 1).fill(0);
+      const pShape = new Array(deployHorizon + 1).fill(0);
       let sumShape = 0;
       
       // Definimos los puntos de inflexión del trapecio (ramp-up y ramp-down del 20%)
       const r1 = Math.max(3, Math.round(1 + remainingYears * 0.2));
-      const r2 = Math.min(horizon - 1, Math.round(horizon - remainingYears * 0.2));
+      const r2 = Math.min(deployHorizon - 1, Math.round(deployHorizon - remainingYears * 0.2));
       
-      for (let y = 2; y <= horizon; y++) {
+      for (let y = 2; y <= deployHorizon; y++) {
         if (y < r1) {
           pShape[y] = (y - 1) / (r1 - 1); // Rampa de subida
         } else if (y <= r2) {
           pShape[y] = 1; // Meseta (Plateau)
         } else {
-          pShape[y] = (horizon - y) / (horizon - r2); // Rampa de bajada
+          pShape[y] = (deployHorizon - y) / (deployHorizon - r2); // Rampa de bajada
         }
         sumShape += pShape[y];
       }
@@ -114,7 +118,7 @@ export function getDeploymentSchedule(scenario: Scenario): number[] {
       const extraNeeded = remaining - sumBase;
       const amplitude = sumShape > 0 ? extraNeeded / sumShape : 0;
       
-      for (let y = 2; y <= horizon; y++) {
+      for (let y = 2; y <= deployHorizon; y++) {
         schedule[y] = Math.max(0, baseLine[y] + pShape[y] * amplitude);
       }
       break;
@@ -157,8 +161,8 @@ export function calculateCapexForYear(scenario: Scenario, year: number): number 
     : 0;
 
   if (year === 0) {
-    // Pre-operativo: porción IT del año 0 + Project Management
-    return itCostThisYear + capex.pmCost;
+    // Pre-operativo: solo porción IT del año 0 (PM ahora va en OPEX)
+    return itCostThisYear;
   }
 
   const schedule = getDeploymentSchedule(scenario);
@@ -201,18 +205,28 @@ export function calculateCapexForYear(scenario: Scenario, year: number): number 
  * Telecom M2M solo para medidores P2P activos acumulados.
  */
 export function calculateOpexForYear(scenario: Scenario, year: number): number {
-  if (year < 1) return 0;
+  if (year < 0) return 0;
   const { global, opex } = scenario;
+  const deployHorizon = global.deploymentHorizonYears ?? 10;
   const p2pPct = deriveP2pPct(global.wiSunPct, global.plcPct);
+
+  // Project Management: distribuido en partes iguales por año de despliegue (años 0..deployHorizon-1)
+  const pmPerYear = (opex.pmCost ?? 0) > 0 && deployHorizon > 0
+    ? (opex.pmCost ?? 0) / deployHorizon
+    : 0;
+  const pmThisYear = year < deployHorizon ? pmPerYear : 0;
+
+  // El resto del OPEX operativo arranca desde el año 1
+  if (year < 1) return pmThisYear;
 
   const cumulative = getCumulativeDeployed(scenario);
   const activeMeters = cumulative[year] ?? 0;
   const p2pActiveMeters = activeMeters * (p2pPct / 100);
 
-  const telecomAnnual    = p2pActiveMeters * opex.telecomMonthly * 12;
-  const cloudAnnual      = opex.cloudMonthly * 12;
+  const telecomAnnual = p2pActiveMeters * opex.telecomMonthly * 12;
+  const cloudAnnual   = opex.cloudMonthly * 12;
 
-  return telecomAnnual + cloudAnnual + opex.maintenanceAnnual + opex.saasAnnual + opex.adminAnnual;
+  return pmThisYear + telecomAnnual + cloudAnnual + opex.maintenanceAnnual + opex.saasAnnual + opex.adminAnnual;
 }
 
 // ── BENEFICIOS ────────────────────────────────────────────────────────────
@@ -273,7 +287,7 @@ export function calculateBenefitsForYear(scenario: Scenario, year: number): numb
 
 function calculateCohortVad(capex: number, cohortYear: number, evalYear: number, life: number, wacc: number): number {
   const age = evalYear - cohortYear;
-  if (age < 0 || age >= life) return 0; // No instalada o totalmente amortizada
+  if (age < 1 || age >= life) return 0; // El activo entra a la RAB al cierre del año; primer VAD en año siguiente
   
   const annualAmortization = capex / life;
   const remRAB = capex - (annualAmortization * age); // Base de Capital Remanente
@@ -347,6 +361,83 @@ export function calculateVadRevenueMeters(scenario: Scenario, evalYear: number):
   return totalVad;
 }
 
+// ── AMORTIZACIÓN CONTABLE E IMPUESTO A LAS GANANCIAS ─────────────────────
+
+const INCOME_TAX_RATE = 0.35;
+
+/**
+ * Depreciación contable del CAPEX real (medidores + IT) a 25 años.
+ * Reduce la base imponible del impuesto a las ganancias.
+ * age >= 1: el activo entra al balance al cierre del año de adquisición.
+ */
+export function calculateAccountingDepreciation(scenario: Scenario, evalYear: number): number {
+  if (evalYear <= 0) return 0;
+  const { capex, global } = scenario;
+  const { wiSunPct, plcPct, t2t3Pct = 0 } = global;
+  const p2pPct = deriveP2pPct(wiSunPct, plcPct);
+  const t1Pct = Math.max(0, 100 - t2t3Pct);
+  const depLife = 25;
+  let dep = 0;
+
+  // IT: cada cohorte (años 0-5) amortiza a 25 años
+  const itSchedule = [
+    capex.itScheduleY0 ?? 100, capex.itScheduleY1 ?? 0, capex.itScheduleY2 ?? 0,
+    capex.itScheduleY3 ?? 0,  capex.itScheduleY4 ?? 0, capex.itScheduleY5 ?? 0,
+  ];
+  for (let cohort = 0; cohort <= 5; cohort++) {
+    const pct = itSchedule[cohort] ?? 0;
+    if (pct <= 0) continue;
+    const cohortCapex = (pct / 100) * capex.itIntegrationCost;
+    const age = evalYear - cohort;
+    if (age >= 1 && age <= depLife) dep += cohortCapex / depLife;
+  }
+
+  // Medidores: cada cohorte de instalación a 25 años
+  const schedule = getDeploymentSchedule(scenario);
+  for (let cohort = 1; cohort < schedule.length; cohort++) {
+    const meters = schedule[cohort] || 0;
+    if (meters <= 0) continue;
+    const wMeter = (t1Pct / 100) * capex.meterCostT1 + (t2t3Pct / 100) * capex.meterCostT2T3;
+    const wComms = (wiSunPct / 100) * capex.commsCostWiSun
+      + (plcPct / 100) * capex.commsCostPLC
+      + (p2pPct / 100) * capex.commsCostP2P;
+    const plcConcentrators = (meters * (plcPct / 100)) / 250;
+    const wiFocalPoints = (meters * (wiSunPct / 100)) / 5000;
+    const cohortCapex = meters * (wMeter + wComms + capex.installCost)
+      + plcConcentrators * capex.concentratorCostPLC
+      + wiFocalPoints * capex.focalPointCostWiSun;
+    const age = evalYear - cohort;
+    if (age >= 1 && age <= depLife) dep += cohortCapex / depLife;
+  }
+
+  return dep;
+}
+
+/**
+ * Base imponible del año t:
+ *   Ingresos (Beneficios + VAD) - OPEX - Amortización contable
+ * No se deduce el CAPEX (se capitaliza y amortiza).
+ */
+export function calculateTaxableBase(scenario: Scenario, year: number): number {
+  const benefits   = calculateBenefitsForYear(scenario, year);
+  const vad        = calculateVadRevenueIT(scenario, year) + calculateVadRevenueMeters(scenario, year);
+  const opex       = calculateOpexForYear(scenario, year);
+  const amort      = calculateAccountingDepreciation(scenario, year);
+  return benefits + vad - opex - amort;
+}
+
+/**
+ * Impuesto a las ganancias pagado en el año `year`.
+ * En Argentina se liquida sobre el resultado del año anterior (t-1).
+ * Si el resultado previo fue negativo: impuesto = 0 (sin carry-forward por simplicidad).
+ */
+export function calculateIncomeTax(scenario: Scenario, year: number): number {
+  if (!scenario.global.includeTax) return 0;
+  if (year <= 1) return 0;   // Año 0 y 1: no hay ejercicio anterior positivo gravable
+  const prevTaxableBase = calculateTaxableBase(scenario, year - 1);
+  return prevTaxableBase > 0 ? prevTaxableBase * INCOME_TAX_RATE : 0;
+}
+
 // ── VPN TOTAL ─────────────────────────────────────────────────────────────
 
 export function calculateNPV(scenario: Scenario): number {
@@ -358,7 +449,8 @@ export function calculateNPV(scenario: Scenario): number {
     const opex       = calculateOpexForYear(scenario, t);
     const benefits   = calculateBenefitsForYear(scenario, t);
     const vadRevenue = calculateVadRevenueIT(scenario, t) + calculateVadRevenueMeters(scenario, t);
-    npv += (benefits + vadRevenue - opex - capex) / Math.pow(1 + r, t);
+    const tax        = calculateIncomeTax(scenario, t);
+    npv += (benefits + vadRevenue - opex - capex - tax) / Math.pow(1 + r, t);
   }
   return npv;
 }
@@ -373,9 +465,10 @@ export function calculateROI(scenario: Scenario): number {
     const opex = calculateOpexForYear(scenario, t);
     const benefits = calculateBenefitsForYear(scenario, t);
     const vad = calculateVadRevenueIT(scenario, t) + calculateVadRevenueMeters(scenario, t);
+    const tax = calculateIncomeTax(scenario, t);
     
     totalCapex += capex;
-    totalInflows += (benefits + vad - opex);
+    totalInflows += (benefits + vad - opex - tax);
   }
   
   if (totalCapex === 0) return 0;
@@ -394,10 +487,11 @@ export function calculatePI(scenario: Scenario): number {
     const opex = calculateOpexForYear(scenario, t);
     const benefits = calculateBenefitsForYear(scenario, t);
     const vad = calculateVadRevenueIT(scenario, t) + calculateVadRevenueMeters(scenario, t);
+    const tax = calculateIncomeTax(scenario, t);
     
     const discount = Math.pow(1 + r, t);
     pvOutflows += capex / discount;
-    pvInflows += (benefits + vad - opex) / discount;
+    pvInflows += (benefits + vad - opex - tax) / discount;
   }
   
   if (pvOutflows === 0) return 0;
@@ -412,7 +506,8 @@ function npvAtRate(scenario: Scenario, rate: number): number {
     const opex = calculateOpexForYear(scenario, t);
     const benefits = calculateBenefitsForYear(scenario, t);
     const vad = calculateVadRevenueIT(scenario, t) + calculateVadRevenueMeters(scenario, t);
-    npv += (benefits + vad - opex - capex) / Math.pow(1 + rate, t);
+    const tax = calculateIncomeTax(scenario, t);
+    npv += (benefits + vad - opex - capex - tax) / Math.pow(1 + rate, t);
   }
   return npv;
 }
@@ -455,7 +550,9 @@ export function generateProjection(scenario: Scenario): YearlyProjection[] {
     const opex       = calculateOpexForYear(scenario, year);
     const benefits   = calculateBenefitsForYear(scenario, year);
     const vadRevenue = calculateVadRevenueIT(scenario, year) + calculateVadRevenueMeters(scenario, year);
-    const netCashFlow = benefits + vadRevenue - opex - capex;
+    const taxableBase = calculateTaxableBase(scenario, year);
+    const incomeTax  = calculateIncomeTax(scenario, year);
+    const netCashFlow = benefits + vadRevenue - opex - capex - incomeTax;
     const discountedFcf = netCashFlow / Math.pow(1 + r, year);
     cumulativeNPV += discountedFcf;
 
@@ -474,7 +571,9 @@ export function generateProjection(scenario: Scenario): YearlyProjection[] {
       fcf: netCashFlow,
       discountedFcf,
       netCashFlow,
-      cumulativeNPV
+      cumulativeNPV,
+      incomeTax,
+      taxableBase,
     });
   }
 

@@ -1,6 +1,5 @@
 // store/useStore.ts – Estado global del simulador AMI
-// Zustand + persist middleware (localStorage key: ami-simulator-v12)
-// Zustand + persist middleware (localStorage key: ami-simulator-v15)
+// Zustand + persist middleware (localStorage key: ami-simulator-v16)
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -8,19 +7,22 @@ import type { Scenario } from '../DATA_MODEL';
 import { generateProjection, calculateNPV } from '../BUSINESS_LOGIC';
 
 // ── Escenario Baseline (Edesur 2026) ──────────────────────────────────────
+export const STORE_VERSION = 'v17';
 export const BASELINE_SCENARIO: Scenario = {
   id: 'baseline',
   name: 'Baseline — Edesur 2026',
   description: 'Escenario de referencia con supuestos Edesur. Mix tecnológico Wi-Sun/PLC. Curva de despliegue lineal.',
   isBaseline: true,
   global: {
-    wacc:                 14.2,
-    analysisHorizonYears: 12,
-    totalEndpoints:       2_700_000,
-    wiSunPct:             20,
-    plcPct:               75,
-    t2t3Pct:              2,
-    deploymentCurve:      'linear',
+    wacc:                    14.2,
+    deploymentHorizonYears:  10,
+    analysisHorizonYears:    20,
+    totalEndpoints:          2_700_000,
+    wiSunPct:                20,
+    plcPct:                  75,
+    t2t3Pct:                 2,
+    deploymentCurve:         'linear',
+    includeTax:              false,
   },
   capex: {
     meterCostT1:          60,
@@ -36,7 +38,6 @@ export const BASELINE_SCENARIO: Scenario = {
     focalPointCostWiSun:  700,
     // IT Platform
     itIntegrationCost:    15_000_000,
-    pmCost:               1_000_000,
     // Distribución temporal IT (% por año, suma = 100)
     itScheduleY0:         40,
     itScheduleY1:         30,
@@ -51,6 +52,7 @@ export const BASELINE_SCENARIO: Scenario = {
     cloudMonthly:         5_000,
     maintenanceAnnual:    500_000,
     adminAnnual:          500_000,
+    pmCost:               1_000_000,   // distribuido en partes iguales por año de despliegue
   },
   benefits: {
     // Operacionales
@@ -107,6 +109,7 @@ interface AMIStore {
   deleteScenario:           (id: string) => void;
   updateVariable:           (scenarioId: string, section: keyof Omit<Scenario, 'id' | 'name' | 'description' | 'isBaseline'>, key: string, value: number) => void;
   updateGlobalString:       (scenarioId: string, key: string, value: string) => void;
+  updateGlobalBool:         (scenarioId: string, key: string, value: boolean) => void;
   resetScenarioToBaseline:  (id: string) => void;
 }
 
@@ -174,6 +177,15 @@ export const useStore = create<AMIStore>()(
           }),
         })),
 
+      // Para campos boolean (includeTax, etc.)
+      updateGlobalBool: (scenarioId, key, value) =>
+        set((state) => ({
+          scenarios: state.scenarios.map((s) => {
+            if (s.id !== scenarioId) return s;
+            return { ...s, global: { ...s.global, [key]: value } };
+          }),
+        })),
+
       resetScenarioToBaseline: (id) =>
         set((state) => ({
           scenarios: state.scenarios.map((s) => {
@@ -189,8 +201,8 @@ export const useStore = create<AMIStore>()(
         })),
     }),
     {
-      name: 'ami-simulator-v15',
-      version: 15,
+      name: 'ami-simulator-v17',
+      version: 17,
     }
   )
 );

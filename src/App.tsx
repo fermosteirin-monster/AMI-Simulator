@@ -17,7 +17,9 @@ import ScenarioCompare from './components/ScenarioCompare';
 import MultiScenarioChart from './components/MultiScenarioChart';
 import { PRESETS } from './lib/presets';
 import { generateDetailedCSV } from './lib/exportUtils';
+import { exportFlujoFondosExcel } from './lib/exportExcel';
 import MtSensorView from './components/mt/MtSensorView';
+import CombinedView from './components/CombinedView';
 
 type DashTab = 'overview' | 'projection' | 'sensitivity' | 'compare';
 
@@ -45,7 +47,7 @@ export default function App() {
     () => sessionStorage.getItem('ami_authenticated') === 'true'
   );
   
-  const [activeModule, setActiveModule]     = useState<'AMI' | 'MT'>('AMI');
+  const [activeModule, setActiveModule]     = useState<'AMI' | 'MT' | 'COMBINED'>('AMI');
 
   const [cloneName, setCloneName]           = useState('');
   const [showCloneInput, setShowCloneInput] = useState(false);
@@ -102,6 +104,17 @@ export default function App() {
     a.download = `ami-formulas-${activeScenario.id}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
+    setShowExportMenu(false);
+  };
+
+  const handleExportExcel = async () => {
+    if (!activeScenario) return;
+    try {
+      await exportFlujoFondosExcel(activeScenario);
+    } catch (err) {
+      console.error('Error exportando Excel:', err);
+      alert('Hubo un error al generar el Excel. Revisa la consola.');
+    }
     setShowExportMenu(false);
   };
 
@@ -306,11 +319,15 @@ export default function App() {
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <h1 className="text-base font-bold text-gradient leading-none">
-                {activeModule === 'AMI' ? (activeScenario?.name ?? 'Sin escenario') : 'Sensorización de MT'}
+                {activeModule === 'AMI' ? (activeScenario?.name ?? 'Sin escenario')
+                  : activeModule === 'MT' ? 'Sensorización de MT'
+                  : 'Vista Combinada — AMI + MT'}
               </h1>
             </div>
             <p className="text-xs max-w-lg truncate" style={{ color: 'var(--text-muted)' }}>
-              {activeModule === 'AMI' ? activeScenario?.description : 'Módulo Independiente de Evaluación y Análisis Financiero'}
+              {activeModule === 'AMI' ? activeScenario?.description
+                : activeModule === 'MT' ? 'Módulo Independiente de Evaluación y Análisis Financiero'
+                : 'Resumen financiero consolidado de AMI y Sensorización MT'}
             </p>
           </div>
 
@@ -329,15 +346,22 @@ export default function App() {
               >
                 MT Sensors
               </button>
+              <button
+                onClick={() => setActiveModule('COMBINED')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeModule === 'COMBINED' ? 'bg-brand-500 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              >
+                📊 Combinado
+              </button>
             </div>
             
             {/* Meta pills (Solo AMI) */}
             {activeModule === 'AMI' && (
             <div className="flex items-center gap-2">
               {[
-                { label: 'Horizonte', value: `${activeScenario?.global.analysisHorizonYears ?? 8}a` },
-                { label: 'WACC', value: `${activeScenario?.global.wacc ?? 14}%` },
-                { label: 'Endpoints', value: `${((activeScenario?.global.totalEndpoints ?? 0)/1e6).toFixed(1)}M` },
+                { label: 'Despliegue', value: `${activeScenario?.global.deploymentHorizonYears ?? 10}a` },
+                { label: 'Análisis',   value: `${activeScenario?.global.analysisHorizonYears ?? 20}a` },
+                { label: 'WACC',       value: `${activeScenario?.global.wacc ?? 14}%` },
+                { label: 'Endpoints',  value: `${((activeScenario?.global.totalEndpoints ?? 0)/1e6).toFixed(1)}M` },
               ].map(({ label, value }) => (
                 <div key={label} className="glass px-2.5 py-1 rounded-lg flex items-center gap-1.5">
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}:</span>
@@ -388,8 +412,9 @@ export default function App() {
                     }}
                   >
                     {[
-                      { id: 'export-pdf-btn', icon: '📄', label: 'Exportar a PDF (Reporte de KPIs)', fn: handleExportPDF },
-                      { id: 'export-csv-btn', icon: '📊', label: 'Exportar a Google Sheets (Auditoría de Fórmulas)', fn: handleExportDetailedCSV },
+                      { id: 'export-excel-btn', icon: '📊', label: 'Exportar Flujo de Caja (Excel)', fn: handleExportExcel },
+                      { id: 'export-csv-btn', icon: '📝', label: 'Exportar Fórmulas (CSV)', fn: handleExportDetailedCSV },
+                      { id: 'export-pdf-btn', icon: '📄', label: 'Exportar Reporte (PDF)', fn: handleExportPDF },
                     ].map((item) => (
                       <button key={item.id} id={item.id} onClick={item.fn}
                         className="w-full text-left px-3 py-2 text-xs rounded-lg transition-colors hover:bg-white/5"
@@ -407,6 +432,8 @@ export default function App() {
         {/* ── CONTENIDO ─────────────────────────────────────────────────── */}
         {activeModule === 'MT' ? (
           <MtSensorView />
+        ) : activeModule === 'COMBINED' ? (
+          <CombinedView />
         ) : (
           <>
             {/* Tabs (Solo AMI) */}

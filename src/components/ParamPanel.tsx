@@ -49,6 +49,7 @@ export default function ParamPanel() {
   const scenario       = useStore(selectActiveScenario);
   const updateVariable = useStore((s) => s.updateVariable);
   const updateGlobalString = useStore((s) => s.updateGlobalString);
+  const updateGlobalBool   = useStore((s) => s.updateGlobalBool);
 
   if (!scenario) return null;
 
@@ -154,15 +155,27 @@ export default function ParamPanel() {
             {/* ── GLOBAL ───────────────────────────────────────────── */}
             {activeTab === 'global' && (<>
 
-              <motion.div variants={itemVariants}><SectionTitle>Parámetros Financieros</SectionTitle></motion.div>
+              {/* ── Sección Despliegue de Equipos ─── */}
+              <motion.div variants={itemVariants}><SectionTitle>Despliegue de Equipos</SectionTitle></motion.div>
+
+              {/* Advertencia si horizonte de despliegue > horizonte de análisis */}
+              {(scenario.global.deploymentHorizonYears ?? 10) > scenario.global.analysisHorizonYears && (
+                <motion.div variants={itemVariants}>
+                  <div className="glass rounded-xl p-3 mb-1 text-xs leading-relaxed border border-amber-500/40 bg-amber-500/8"
+                    style={{ color: 'var(--text-secondary)' }}>
+                    ⚠️ El horizonte de despliegue (<strong className="text-amber-400">{scenario.global.deploymentHorizonYears}a</strong>) supera
+                    el horizonte de análisis (<strong className="text-amber-400">{scenario.global.analysisHorizonYears}a</strong>).
+                    Se truncará al horizonte de análisis.
+                  </div>
+                </motion.div>
+              )}
+
               {([
-                { id: 'wacc',                 label: 'WACC',                  unit: '%',      format: 'percent' as const, min: 1,   max: 50, step: 0.5,
-                  tooltip: 'Tasa de descuento en USD. Incluye riesgo país Argentina + costo financiero corporativo.', val: scenario.global.wacc },
-                { id: 'analysisHorizonYears', label: 'Horizonte de Análisis', unit: 'años',   format: 'number'  as const, min: 3,   max: 20, step: 1,
-                  tooltip: 'Período de evaluación del proyecto.', val: scenario.global.analysisHorizonYears },
-                { id: 'totalEndpoints',       label: 'Total de Endpoints',    unit: 'medidores', format: 'currency' as const, min: 10000,
+                { id: 'deploymentHorizonYears', label: 'Horizonte de Despliegue', unit: 'años', format: 'number' as const, min: 1, max: 30, step: 1,
+                  tooltip: 'Años durante los cuales se instalan medidores (curva bell/plateau/linear). El año 1 arranca con 100K fijos.', val: scenario.global.deploymentHorizonYears ?? 10 },
+                { id: 'totalEndpoints', label: 'Total de Endpoints', unit: 'medidores', format: 'currency' as const, min: 10000,
                   tooltip: 'Universo total de medidores a desplegar. Edesur tiene ~2.5M de clientes activos.', val: scenario.global.totalEndpoints },
-                { id: 't2t3Pct',              label: 'Mix Hardware: T2/T3',   unit: '%', format: 'percent' as const, min: 0, max: 100, step: 1,
+                { id: 't2t3Pct', label: 'Mix Hardware: T2/T3', unit: '%', format: 'percent' as const, min: 0, max: 100, step: 1,
                   tooltip: 'Porcentaje del parque que utilizará medidores T2 o T3. El resto usará T1.', val: scenario.global.t2t3Pct ?? 0 },
               ] as const).map((p) => (
                 <motion.div key={p.id} variants={itemVariants}>
@@ -180,7 +193,7 @@ export default function ParamPanel() {
                   value={scenario.global.deploymentCurve}
                   onChange={(v: DeploymentCurve) => updateGlobalString(scenario.id, 'deploymentCurve', v)}
                   totalEndpoints={scenario.global.totalEndpoints}
-                  horizon={scenario.global.analysisHorizonYears}
+                  horizon={scenario.global.deploymentHorizonYears ?? 10}
                 />
               </motion.div>
 
@@ -198,7 +211,65 @@ export default function ParamPanel() {
                 />
               </motion.div>
 
+              {/* ── Sección Análisis Económico ─── */}
+              <motion.div variants={itemVariants}><SectionTitle>Análisis Económico</SectionTitle></motion.div>
+              <motion.div variants={itemVariants}>
+                <div className="glass rounded-xl p-3 mb-2 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  💡 El análisis económico abarca desde el Año 0 hasta el Año <strong className="text-brand-400">{scenario.global.analysisHorizonYears}</strong>.
+                  Del Año <strong className="text-brand-400">{(scenario.global.deploymentHorizonYears ?? 10) + 1}</strong> en adelante,
+                  el parque opera en plena capacidad sin nuevas instalaciones.
+                </div>
+              </motion.div>
+              {([
+                { id: 'analysisHorizonYears', label: 'Horizonte de Análisis', unit: 'años', format: 'number' as const, min: 3, max: 40, step: 1,
+                  tooltip: 'Período total de evaluación económica (NPV, IRR, flujo de caja, VAD). Debe ser ≥ Horizonte de Despliegue.', val: scenario.global.analysisHorizonYears },
+                { id: 'wacc', label: 'WACC', unit: '%', format: 'percent' as const, min: 1, max: 50, step: 0.5,
+                  tooltip: 'Tasa de descuento en USD. Incluye riesgo país Argentina + costo financiero corporativo.', val: scenario.global.wacc },
+              ] as const).map((p) => (
+                <motion.div key={p.id} variants={itemVariants}>
+                  <ParamInput {...p} value={p.val} onChange={(v) => upd('global', p.id, v)} />
+                </motion.div>
+              ))}
+
+              {/* ── Impuesto a las Ganancias ─── */}
+              <motion.div variants={itemVariants}><SectionTitle>Impuesto a las Ganancias</SectionTitle></motion.div>
+              <motion.div variants={itemVariants}>
+                <div className="glass rounded-xl p-3 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p className="font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                        Incluir impacto fiscal (35%)
+                      </p>
+                      <p className="leading-relaxed">
+                        Aplica <strong className="text-amber-400">35%</strong> sobre el resultado operativo
+                        (Ingresos − OPEX − Amortización contable). El impuesto se liquida en el <strong className="text-amber-400">período siguiente</strong>.
+                        La amortización contable de equipos se calcula a <strong className="text-amber-400">25 años</strong> sobre el CAPEX real.
+                      </p>
+                    </div>
+                    <button
+                      id="toggle-include-tax"
+                      onClick={() => updateGlobalBool(scenario.id, 'includeTax', !scenario.global.includeTax)}
+                      className={`flex-shrink-0 relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${
+                        scenario.global.includeTax ? 'bg-amber-500' : 'bg-white/10'
+                      }`}
+                      title="Incluir / excluir impuesto a las ganancias"
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                        scenario.global.includeTax ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
+                    </button>
+                  </div>
+                  {scenario.global.includeTax && (
+                    <div className="mt-2 pt-2 border-t border-white/10 text-amber-400/80">
+                      ✓ Activo — el FCF, NPV, IRR y payback reflejan el efecto del impuesto
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+
             </>)}
+
+
 
             {/* ── REGULATORY ────────────────────────────────────────── */}
             {activeTab === 'regulatory' && (() => {
@@ -309,18 +380,6 @@ export default function ParamPanel() {
                   onChange={(field, value) => upd('capex', field, value)}
                 />
               </motion.div>
-              <motion.div variants={itemVariants}>
-                <ParamInput
-                  id="pmCost"
-                  label="Project Management"
-                  unit="M USD"
-                  format="millions"
-                  min={0}
-                  tooltip="Gerencia de proyecto, comunicación institucional y campañas de concientización. Se ejecuta en Año 0."
-                  value={scenario.capex.pmCost}
-                  onChange={(v) => upd('capex', 'pmCost', v)}
-                />
-              </motion.div>
             </>)}
 
             {/* ── OPEX ──────────────────────────────────────────────── */}
@@ -355,6 +414,29 @@ export default function ParamPanel() {
                   <ParamInput {...p} value={p.val} onChange={(v) => upd('opex', p.id, v)} />
                 </motion.div>
               ))}
+
+              <motion.div variants={itemVariants}><SectionTitle>Gestión de Proyecto</SectionTitle></motion.div>
+              <motion.div variants={itemVariants}>
+                <div className="glass rounded-xl p-3 mb-2 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  💡 Se distribuye en <strong className="text-brand-400">{scenario.global.deploymentHorizonYears ?? 10} cuotas iguales</strong> a lo largo del horizonte de despliegue
+                  (Años 0–{(scenario.global.deploymentHorizonYears ?? 10) - 1}),
+                  equivalente a <strong className="text-brand-400">
+                    {((scenario.opex.pmCost ?? 0) / (scenario.global.deploymentHorizonYears ?? 10) / 1000).toFixed(0)}K USD/año
+                  </strong>.
+                </div>
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <ParamInput
+                  id="pmCost"
+                  label="Project Management (total)"
+                  unit="M USD"
+                  format="millions"
+                  min={0}
+                  tooltip="Gerencia de proyecto, comunicación institucional y campañas de concientización. Se distribuye en partes iguales por cada año del horizonte de despliegue."
+                  value={scenario.opex.pmCost ?? 0}
+                  onChange={(v) => upd('opex', 'pmCost', v)}
+                />
+              </motion.div>
             </>)}
 
             {/* ── BENEFICIOS OP (Operacionales) ────────────────────────── */}

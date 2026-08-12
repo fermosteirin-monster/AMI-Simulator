@@ -74,6 +74,8 @@ export function generateMtProjection(params: MtSensorParams): { projection: MtYe
   // According to standard logic, we'll start cash flows at Year 1 for savings, but CAPEX can happen in Year 1.
   // We'll generate from Year 1 to projectHorizon. We'll set Year 0 to zero just as a baseline if needed, but let's iterate t=1..projectHorizon.
 
+  const includeTax = params.includeTax ?? false;
+
   // Let's include Year 0 with 0 values to keep index = year
   projection.push({
     year: 0,
@@ -82,15 +84,30 @@ export function generateMtProjection(params: MtSensorParams): { projection: MtYe
     saidiSavings: 0,
     netCashFlow: 0,
     progress: 0,
-    accumulatedTransformers: 0
+    accumulatedTransformers: 0,
+    accountingDepreciation: 0,
+    taxableBase: 0,
+    incomeTax: 0
   });
   cashFlows.push(0);
+
+  const capexHistory: number[] = [];
 
   for (let t = 1; t <= projectHorizon; t++) {
     // 1. CAPEX
     let capexT = 0;
     if (t <= deploymentHorizon) {
       capexT = transformersPerYear * (sensorUnitCost + p2pConnectionCost + installationCost);
+    }
+    capexHistory.push(capexT);
+
+    // Amortización contable a 25 años sobre el CAPEX real
+    let accountingDepreciation = 0;
+    for (let i = 1; i < t; i++) {
+      const pastCapex = capexHistory[i - 1]; // index 0 corresponds to year 1
+      if (t - i <= 25) { // amortiza por 25 años
+        accountingDepreciation += pastCapex / 25;
+      }
     }
 
     // 2. Accumulated Transformers
@@ -103,8 +120,21 @@ export function generateMtProjection(params: MtSensorParams): { projection: MtYe
     // 4. SAIDI Savings
     const saidiSavingsT = saidiMtHistorical * (saidiMtReduction / 100) * finePerMinute * progressT;
 
+    // Taxable Base (Operating Income - Depreciation)
+    const totalBenefitsT = maintenanceSavingsT + saidiSavingsT;
+    const taxableBase = totalBenefitsT - accountingDepreciation;
+
+    // Income tax is paid on the previous year's positive taxable base
+    let incomeTax = 0;
+    if (includeTax && t > 1) {
+      const pastTaxableBase = projection[t - 1].taxableBase;
+      if (pastTaxableBase > 0) {
+        incomeTax = pastTaxableBase * 0.35;
+      }
+    }
+
     // 5. Net Cash Flow
-    const netCashFlowT = maintenanceSavingsT + saidiSavingsT - capexT;
+    const netCashFlowT = totalBenefitsT - capexT - incomeTax;
 
     projection.push({
       year: t,
@@ -113,7 +143,10 @@ export function generateMtProjection(params: MtSensorParams): { projection: MtYe
       saidiSavings: saidiSavingsT,
       netCashFlow: netCashFlowT,
       progress: progressT,
-      accumulatedTransformers: accumulatedT
+      accumulatedTransformers: accumulatedT,
+      accountingDepreciation,
+      taxableBase,
+      incomeTax
     });
 
     cashFlows.push(netCashFlowT);

@@ -6,6 +6,7 @@ const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0,
 export function generateDetailedCSV(scenario: Scenario): string {
   const { global, capex, opex, benefits } = scenario;
   const horizon = global.analysisHorizonYears;
+  const deployHorizon = global.deploymentHorizonYears ?? 10;
   const schedule = getDeploymentSchedule(scenario);
   const cumulative = getCumulativeDeployed(scenario);
   
@@ -33,9 +34,6 @@ export function generateDetailedCSV(scenario: Scenario): string {
       const pct = itSchedule[year] ?? 0;
       const itCost = (pct / 100) * capex.itIntegrationCost;
       if (pct > 0) addRow(year, 'CAPEX', 'Integración IT', 'IT Cost * % Distribución Anual', `${fmt(capex.itIntegrationCost)} * ${pct}%`, itCost);
-      if (year === 0 && capex.pmCost > 0) {
-        addRow(year, 'CAPEX', 'Project Management', 'PM Cost Fijo Año 0', `${fmt(capex.pmCost)}`, capex.pmCost);
-      }
     }
 
     if (metersThisYear > 0) {
@@ -59,6 +57,13 @@ export function generateDetailedCSV(scenario: Scenario): string {
     }
 
     // --- OPEX ---
+    // --- OPEX ---
+    // Project Management: distribuido desde año 0 hasta deployHorizon-1
+    const pmPerYear = (opex.pmCost ?? 0) > 0 && deployHorizon > 0 ? (opex.pmCost ?? 0) / deployHorizon : 0;
+    if (pmPerYear > 0 && year < deployHorizon) {
+      addRow(year, 'OPEX', 'Project Management', 'PM_Total / Años_Despliegue', `${fmt(opex.pmCost ?? 0)} / ${deployHorizon}`, pmPerYear);
+    }
+
     if (year > 0) {
       const p2pMetersCumulative = cumMeters * (p2pPct / 100);
       const telecomCost = p2pMetersCumulative * opex.telecomMonthly * 12;
@@ -68,6 +73,7 @@ export function generateDetailedCSV(scenario: Scenario): string {
       addRow(year, 'OPEX', 'Infraestructura Cloud', 'Cloud_Mensual * 12 * Progreso_Despliegue', `${fmt(opex.cloudMonthly)} * 12 * ${fmt(progress * 100)}%`, opex.cloudMonthly * 12 * progress);
       addRow(year, 'OPEX', 'Administración y Gestión', 'Admin_Anual * Progreso_Despliegue', `${fmt(opex.adminAnnual)} * ${fmt(progress * 100)}%`, opex.adminAnnual * progress);
     }
+
 
     // --- BENEFICIOS ---
     if (year > 0) {

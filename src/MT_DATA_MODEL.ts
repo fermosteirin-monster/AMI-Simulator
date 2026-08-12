@@ -22,6 +22,7 @@ export interface MtSensorParams {
   
   // Financiero
   wacc: number;                   // Tasa de descuento / Costo de capital (%)
+  includeTax?: boolean;           // Impuesto a las ganancias (35%)
 }
 
 export interface MtYearlyProjection {
@@ -32,6 +33,9 @@ export interface MtYearlyProjection {
   netCashFlow: number;
   progress: number;
   accumulatedTransformers: number;
+  accountingDepreciation: number;
+  taxableBase: number;
+  incomeTax: number;
 }
 
 export interface MtKpis {

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useMtSensorStore } from '../../store/useMtSensorStore';
+import { useStore, selectActiveScenario } from '../../store/useStore';
 import { generateMtProjection } from '../../MT_BUSINESS_LOGIC';
 
 const fmt = (v: number) => {
@@ -47,7 +48,16 @@ function KpiCard({ title, value, subtitle, isPositive, isNegative }: KpiCardProp
 }
 
 export default function MtResultsPanel() {
-  const params = useMtSensorStore((s) => s.params);
+  const paramsRaw  = useMtSensorStore((s) => s.params);
+  const amiScenario = useStore(selectActiveScenario);
+
+  // Sincronizar WACC y horizonte con el escenario AMI activo
+  const params = {
+    ...paramsRaw,
+    wacc:          amiScenario?.global.wacc          ?? paramsRaw.wacc,
+    projectHorizon: amiScenario?.global.analysisHorizonYears ?? paramsRaw.projectHorizon,
+  };
+
   const { kpis } = generateMtProjection(params);
 
   const npvIsPositive = kpis.npv > 0;

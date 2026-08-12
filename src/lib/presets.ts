@@ -16,6 +16,20 @@ export interface Preset {
 
 export const PRESETS: Preset[] = [
   {
+    id: 'bp-original',
+    label: 'BP Original',
+    description: 'Caso base o Business Plan Original con los valores por defecto.',
+    emoji: '📊',
+    color: 'text-indigo-400 border-indigo-500/30 hover:border-indigo-500/60 hover:bg-indigo-500/5',
+    build: () => ({
+      ...JSON.parse(JSON.stringify(BASELINE_SCENARIO)),
+      id: genId(),
+      name: 'BP Original',
+      description: 'Caso base o Business Plan Original con los valores por defecto.',
+      isBaseline: false,
+    }),
+  },
+  {
     id: 'epec',
     label: 'EPEC',
     description: 'Escenario con los valores de la experiencia de EPEC Córdoba',
@@ -29,12 +43,13 @@ export const PRESETS: Preset[] = [
       isBaseline: false,
       global: {
         ...BASELINE_SCENARIO.global,
-        wacc:                 14.2,
-        analysisHorizonYears: 10,
-        totalEndpoints:       2_700_000,
-        wiSunPct:             0,
-        plcPct:               80,
-        deploymentCurve:      'linear' as const,
+        wacc:                    14.2,
+        deploymentHorizonYears:  7,
+        analysisHorizonYears:    10,
+        totalEndpoints:          2_700_000,
+        wiSunPct:                0,
+        plcPct:                  80,
+        deploymentCurve:         'linear' as const,
       },
       capex: {
         ...BASELINE_SCENARIO.capex,
@@ -48,10 +63,10 @@ export const PRESETS: Preset[] = [
         concentratorCostPLC:      700,
         focalPointCostWiSun:      700,
         itIntegrationCost:        10_000_000,
-        pmCost:                   2_000_000,
       },
       opex: {
         ...BASELINE_SCENARIO.opex,
+        pmCost:            2_000_000,
         telecomMonthly:    0.52,
         cloudMonthly:      0,          // Sin costo cloud
         maintenanceAnnual: 500_000,

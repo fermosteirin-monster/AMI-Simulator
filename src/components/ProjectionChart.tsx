@@ -62,24 +62,64 @@ export function NetCashFlowChart() {
   const scenario = useStore(selectActiveScenario);
   if (!scenario) return null;
 
-  const data = generateProjection(scenario).map((d) => ({
-    year: d.year,
-    'Flujo Neto':       d.netCashFlow,
-    'VPN Acumulado':    d.cumulativeNPV,
-  }));
+  const projection = generateProjection(scenario);
+
+  // Calcular breakeven y peak negativo primero
+  let peakNegative = 0;
+  let peakNegativeYear: number | null = null;
+  let breakevenYear: number | null = null;
+  let acc = 0;
+  for (const d of projection) {
+    acc += d.netCashFlow;
+    if (acc < peakNegative) {
+      peakNegative = acc;
+      peakNegativeYear = d.year;
+    }
+    if (breakevenYear === null && acc >= 0 && d.year > 0) {
+      breakevenYear = d.year;
+    }
+  }
+  const hasPeakNegative = peakNegative < 0;
+
+  const includeTax = scenario.global.includeTax ?? false;
+
+  // Flujo Acumulado: solo hasta el punto de equilibrio (null después → corta la línea)
+  let runningSum = 0;
+  const data = projection.map((d) => {
+    runningSum += d.netCashFlow;
+    const pastBreakeven = breakevenYear !== null && d.year > breakevenYear;
+    return {
+      year:                 d.year,
+      'Flujo Neto':         d.netCashFlow,
+      'VPN Acumulado':      d.cumulativeNPV,
+      'Flujo Acumulado':    pastBreakeven ? null : runningSum,
+      'Impuesto Ganancias': includeTax && d.incomeTax > 0 ? -d.incomeTax : null,
+    };
+  });
 
   return (
-    <div className="glass-card p-5 animate-fade-in">
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-white">Flujo Neto Anual & VPN Acumulado</h3>
-        <p className="text-xs text-slate-500 mt-0.5">Proyección {scenario.global.analysisHorizonYears} años · Valores en USD</p>
+    <div className="glass-card p-5 animate-fade-in space-y-4">
+      <div className="mb-1 flex items-start justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Flujo Neto Anual & Acumulado</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Proyección {scenario.global.analysisHorizonYears} años · Valores en USD</p>
+        </div>
+        {includeTax && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 flex-shrink-0">
+            Imp. Ganancias 35%
+          </span>
+        )}
       </div>
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
           <defs>
             <linearGradient id="npvGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.3} />
               <stop offset="95%" stopColor="#6366f1" stopOpacity={0}   />
+            </linearGradient>
+            <linearGradient id="accGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor="#10b981" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#10b981" stopOpacity={0}   />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -99,7 +139,13 @@ export function NetCashFlowChart() {
             wrapperStyle={{ paddingTop: '12px', fontSize: '11px', color: '#94a3b8' }}
           />
           <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
+          {/* Barras de flujo neto anual */}
           <Bar dataKey="Flujo Neto" fill="#818cf8" radius={[3, 3, 0, 0]} opacity={0.8} />
+          {/* Barra naranja: Impuesto a las Ganancias (valor negativo → cae bajo 0) */}
+          {includeTax && (
+            <Bar dataKey="Impuesto Ganancias" fill="#f59e0b" radius={[0, 0, 3, 3]} opacity={0.85} />
+          )}
+          {/* Área VPN acumulado descontado */}
           <Area
             type="monotone"
             dataKey="VPN Acumulado"
@@ -109,11 +155,61 @@ export function NetCashFlowChart() {
             dot={{ fill: '#a855f7', r: 3, strokeWidth: 0 }}
             activeDot={{ r: 5, fill: '#a855f7' }}
           />
+          {/* Línea Flujo Acumulado sin descontar — se corta en el punto de equilibrio */}
+          <Area
+            type="monotone"
+            dataKey="Flujo Acumulado"
+            stroke="#10b981"
+            strokeWidth={2}
+            strokeDasharray="6 3"
+            fill="url(#accGradient)"
+            dot={false}
+            connectNulls={false}
+            activeDot={{ r: 4, fill: '#10b981' }}
+          />
         </ComposedChart>
       </ResponsiveContainer>
+
+      {/* ── Tarjeta: Máxima Exposición Negativa ── */}
+      {hasPeakNegative && (
+        <div className="grid grid-cols-2 gap-3 pt-1">
+          <div className="glass rounded-xl p-3.5 border border-rose-500/25 bg-rose-500/5">
+            <p className="text-xs text-slate-400 mb-1">Máxima Exposición Negativa</p>
+            <p className="text-lg font-bold font-mono text-rose-400">{fmtM(peakNegative)}</p>
+            {peakNegativeYear !== null && (
+              <p className="text-xs text-slate-500 mt-0.5">
+                Pico en <span className="text-rose-400 font-semibold">Año {peakNegativeYear}</span>
+              </p>
+            )}
+            <p className="text-xs text-slate-600 mt-1 leading-tight">
+              Máximo saldo acumulado negativo antes del punto de equilibrio
+            </p>
+          </div>
+          <div className="glass rounded-xl p-3.5 border border-emerald-500/25 bg-emerald-500/5">
+            <p className="text-xs text-slate-400 mb-1">Punto de Equilibrio (FCF)</p>
+            {breakevenYear !== null ? (
+              <>
+                <p className="text-lg font-bold font-mono text-emerald-400">Año {breakevenYear}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  El flujo acumulado cruza el cero
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-bold font-mono text-slate-500">—</p>
+                <p className="text-xs text-slate-500 mt-0.5">No alcanzado en el horizonte</p>
+              </>
+            )}
+            <p className="text-xs text-slate-600 mt-1 leading-tight">
+              Basado en flujo sin descontar
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 // ── Chart 2: CAPEX vs Beneficios vs OPEX (acumulado) ──────────────────────
 export function CapexVsBenefitsChart() {

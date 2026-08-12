@@ -4,12 +4,14 @@ export type DeploymentCurve = 'bell' | 'plateau' | 'linear';
 
 export interface GlobalParams {
   wacc: number;
-  analysisHorizonYears: number;
+  deploymentHorizonYears: number;  // años en que se instalan medidores (curva de despliegue)
+  analysisHorizonYears: number;    // período total de evaluación económica (NPV, IRR, etc.)
   totalEndpoints: number;
   wiSunPct: number;               // % de endpoints con módulo Wi-SUN
   plcPct: number;                 // % de endpoints con módulo PLC
   t2t3Pct: number;                // % de endpoints que son medidores T2/T3
   deploymentCurve: DeploymentCurve;
+  includeTax: boolean;            // Si se incluye impuesto a las ganancias (35%) sobre resultado operativo, pagado en t+1
 }
 
 export interface CapexParams {
@@ -26,7 +28,6 @@ export interface CapexParams {
   focalPointCostWiSun: number;   // 1 cada 5000 conexiones Wi-SUN
   // IT Platform (inversión total)
   itIntegrationCost: number;
-  pmCost: number;
   // Distribución temporal de Integración IT (% del total, años 0-5, debe sumar 100)
   itScheduleY0: number;
   itScheduleY1: number;
@@ -42,6 +43,7 @@ export interface OpexParams {
   cloudMonthly: number;
   maintenanceAnnual: number;
   adminAnnual: number;
+  pmCost: number;              // Project Management: se distribuye en partes iguales por cada año de despliegue
 }
 
 export interface BenefitParams {
@@ -114,4 +116,6 @@ export interface YearlyProjection {
   discountedFcf: number;
   netCashFlow: number;
   cumulativeNPV: number;
+  incomeTax: number;          // Impuesto a las ganancias pagado en este año (0 si includeTax=false)
+  taxableBase: number;        // Base imponible de este año (para auditoría)
 }

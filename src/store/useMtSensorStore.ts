@@ -24,7 +24,7 @@ export const DEFAULT_MT_PARAMS: MtSensorParams = {
 
 interface MtSensorStore {
   params: MtSensorParams;
-  updateParam: (key: keyof MtSensorParams, value: number) => void;
+  updateParam: <K extends keyof MtSensorParams>(key: K, value: MtSensorParams[K]) => void;
   resetToDefault: () => void;
 }
 
