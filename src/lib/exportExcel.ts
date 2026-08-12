@@ -46,6 +46,8 @@ export async function exportFlujoFondosExcel(scenario: Scenario) {
     { header: 'BENEFICIO Recupero Fraude', key: 'benFraud', width: 28 },
     { header: 'BENEFICIOS TOTALES', key: 'benTotal', width: 22 },
     { header: 'INGRESOS VAD (Tarifa)', key: 'vad', width: 25 },
+    { header: 'BASE IMPONIBLE', key: 'taxableBase', width: 22 },
+    { header: 'IMPUESTO A LAS GANANCIAS', key: 'incomeTax', width: 25 },
     { header: 'FLUJO DE CAJA NETO', key: 'fcf', width: 22 }
   ];
 
@@ -117,6 +119,8 @@ export async function exportFlujoFondosExcel(scenario: Scenario) {
     // --- RESULTADOS ---
     const projYear = projection.find(p => p.year === year);
     const vad = projYear?.vadRevenue || 0;
+    const taxableBase = projYear?.taxableBase || 0;
+    const incomeTax = projYear?.incomeTax || 0;
     const fcf = projYear?.netCashFlow || 0;
 
     ws.addRow({
@@ -146,6 +150,8 @@ export async function exportFlujoFondosExcel(scenario: Scenario) {
       benFraud,
       benTotal,
       vad,
+      taxableBase,
+      incomeTax,
       fcf
     });
   }

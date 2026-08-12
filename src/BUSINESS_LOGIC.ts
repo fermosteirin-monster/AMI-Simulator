@@ -287,7 +287,7 @@ export function calculateBenefitsForYear(scenario: Scenario, year: number): numb
 
 function calculateCohortVad(capex: number, cohortYear: number, evalYear: number, life: number, wacc: number): number {
   const age = evalYear - cohortYear;
-  if (age < 1 || age >= life) return 0; // El activo entra a la RAB al cierre del año; primer VAD en año siguiente
+  if (age < 1 || age > life) return 0; // El activo entra a la RAB al cierre del año; primer VAD en año siguiente
   
   const annualAmortization = capex / life;
   const remRAB = capex - (annualAmortization * age); // Base de Capital Remanente
